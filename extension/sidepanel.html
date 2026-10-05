@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="th">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ScenePilot</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+<main class="studio">
+  <header><div class="brand"><img class="brandmark" src="logo.svg" alt=""><div><h1>ScenePilot</h1><p>YOUR SERIES, BROUGHT TO LIFE</p></div></div><button id="open-meta" class="icon" title="เปิด Meta AI" aria-label="เปิด Meta AI">↗</button></header>
+  <div class="connection"><span id="connection-label">● รอเชื่อมต่อ</span><button id="connect" class="text-button">เชื่อมต่อ</button></div>
+  <p id="connection-detail" class="hint connection-detail" role="status" aria-live="polite" hidden></p>
+  <nav class="studio-tabs" aria-label="ส่วนของโปรเจกต์">
+    <button class="tab active" data-page="setup" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h10M4 9h7M4 13h5M13 17l6-6 2 2-6 6-3 1z"/></svg>สร้างพล็อต</button>
+    <button class="tab" data-page="cast"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3"/><path d="M6 20v-2a6 6 0 0 1 12 0v2M4 5a3 3 0 0 1 0 6M20 5a3 3 0 0 0 0 6M2 19v-2a4 4 0 0 1 3-4M22 19v-2a4 4 0 0 0-3-4"/></svg>ตัวละคร</button>
+    <button class="tab" data-page="storyboard"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l1.8 6.2L20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8zM20 3v4M18 5h4"/></svg>สตอรี่บอร์ด <span id="scene-count">0</span></button>
+    <button class="tab" data-page="images"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="M3 17l5-5 4 4 4-6 5 7"/></svg>สร้างภาพ</button>
+    <button class="tab" data-page="scenes"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>สร้างวิดีโอ</button>
+    <button class="tab" data-page="audio"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg>ใส่เสียง</button>
+    <button class="tab" data-page="preview"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 9h18v11H3zM3 9V4h18v5M7 4l3 5M14 4l3 5"/></svg>พรีวิวหนัง</button>
+  </nav>
+  <section id="setup">
+    <div class="section-title"><h2>ตั้งค่าซีรีส์</h2><span>01 / 02</span></div>
+    <p class="intro">วางเรื่องของคุณ แล้วเปลี่ยนแต่ละฉากเป็นพร้อมต์</p>
+    <form id="setup-form">
+      <fieldset><legend>รูปแบบซีรีส์</legend><div class="series-choices">
+        <label><input type="radio" name="seriesType" value="chinese"><span><strong>ซีรีส์จีนย้อนยุค</strong><small>ชุดจีนโบราณ · วังและเมืองเก่า</small></span></label>
+        <label><input type="radio" name="seriesType" value="thai"><span><strong>ซีรีส์ไทยย้อนยุค</strong><small>ชุดไทยตามยุค · เรือนไทยและวิถีชีวิต</small></span></label>
+        <label><input type="radio" name="seriesType" value="general" checked><span><strong>ซีรีส์ทั่วไป</strong><small>กำหนดบรรยากาศเอง</small></span></label>
+      </div></fieldset>
+      <label>ยุค / สถานที่ <span class="optional">(ถ้ามี)</span><input name="era" maxlength="300" placeholder="เช่น จีนสมัยราชวงศ์ถัง / ไทยสมัยอยุธยา"></label>
+      <label>ชื่อซีรีส์<input name="title" maxlength="120" placeholder="เช่น ฝนสุดท้ายที่ร้านกาแฟ"></label>
+      <fieldset><legend>พล็อตและเนื้อเรื่อง</legend><div class="orientation"><label><input type="radio" name="plotMode" value="manual" checked><span>เขียนพล็อตเอง</span></label><label><input type="radio" name="plotMode" value="ai"><span>ให้ Meta AI คิด</span></label></div></fieldset>
+      <label id="synopsis-label">เรื่องย่อ<textarea name="synopsis" rows="3" maxlength="6000" placeholder="เล่าเรื่องที่อยากสร้าง หรือใส่พล็อตที่เตรียมไว้"></textarea></label>
+      <label id="idea-label" hidden>ไอเดียตั้งต้น <span class="optional">(เว้นว่างให้ AI คิดเองได้)</span><textarea name="idea" rows="3" maxlength="4000" placeholder="เช่น รักต่างชนชั้นในเรือนไทยริมน้ำ จบแบบมีความสุข"></textarea></label>
+      <label>แนวเรื่อง<select name="genre"><option>ดราม่า</option><option>โรแมนติก</option><option>ตลก</option><option>สยองขวัญ</option><option>แอ็กชัน</option><option>แฟนตาซี</option><option>สืบสวน</option><option>ผจญภัย</option></select></label>
+      <fieldset><legend>รูปแบบวิดีโอ</legend><div class="orientation"><label><input type="radio" name="orientation" value="9:16" checked><span><i class="portrait"></i>แนวตั้ง <b>9:16</b></span></label><label><input type="radio" name="orientation" value="16:9"><span><i class="landscape"></i>แนวนอน <b>16:9</b></span></label></div></fieldset>
+      <label>จำนวนตอน<input type="number" name="episodes" min="1" max="30" value="1" required></label>
+      <div class="duration"><label>วินาทีต่อฉาก<select name="duration"><option value="10">10 วินาที</option><option value="8">8 วินาที</option><option value="5">5 วินาที</option></select></label><p id="estimate">AI แบ่งฉากตามเนื้อเรื่อง</p></div>
+      <label>สไตล์ภาพ<select name="style"><option>สมจริงแบบภาพยนตร์</option><option>แอนิเมชัน 3D</option><option>อนิเมะ</option><option>ภาพยนตร์ย้อนยุค</option><option>สารคดีสมจริง</option></select></label>
+      <label>ตัวละครหลัก<textarea name="characters" rows="2" maxlength="6000" placeholder="ชื่อ อายุ หน้าตา ทรงผม และชุดที่ใช้ต่อเนื่อง"></textarea></label>
+      <div class="two"><label>ภาษา<input name="language" value="ไทย" maxlength="80"></label><label>เสียง<select name="audio"><option>มีบทพูด</option><option>เสียงบรรยากาศ ไม่มีบทพูด</option><option>ไม่มีเสียง</option></select></label></div>
+      <label>ข้อกำหนดเพิ่มเติม<textarea name="extra" rows="2" maxlength="3000" placeholder="เช่น ไม่มีซับ ไม่มีตัวหนังสือ แสงธรรมชาติ"></textarea></label>
+      <button id="create-scenes" type="submit" class="primary wide">สร้างฉากและพร้อมต์ <span>→</span></button>
+      <p id="manual-hint" class="hint">สร้างโครงฉากในเครื่อง แก้เนื้อหาได้ก่อนส่ง Meta AI<br>ระยะเวลาและสัดส่วนเป็นคำสั่งในพร้อมต์ ผลจริงขึ้นกับ Meta AI</p>
+    </form>
+    <div id="ai-plot" hidden>
+      <label>คำสั่งให้ Meta AI คิดเรื่อง<textarea id="plot-request" rows="6" maxlength="20000" placeholder="กดเตรียมคำสั่งจากการตั้งค่าก่อน"></textarea></label>
+      <div class="two"><button id="copy-plot" class="secondary">คัดลอกคำสั่ง</button><button id="send-plot" class="primary">ส่งให้ Meta AI คิด</button></div>
+      <p class="hint">เปิดหน้าแชต Meta AI เพื่อคิดเรื่อง รอคำตอบจบ แล้วคัดลอก JSON มาวางด้านล่าง หรือเลือกข้อความคำตอบบนเว็บแล้วกดอ่าน</p>
+      <button id="read-plot" class="text-button">อ่านข้อความที่เลือกบน Meta AI</button>
+      <label>คำตอบจาก Meta AI<textarea id="plot-response" rows="6" maxlength="500000" placeholder="วาง JSON ที่ Meta AI ตอบมา ไม่ใช่คำสั่งที่ส่งไป"></textarea></label>
+      <button id="apply-plot" class="primary wide">อ่านคำตอบ / แสดงพล็อตให้เลือก <span>→</span></button>
+      <p class="hint">ตรวจข้อมูลก่อนโหลด งานเดิมจะเปลี่ยนเมื่อคุณยืนยันเท่านั้น จากนั้นแก้พล็อตและฉากเองได้</p>
+    </div>
+    <div id="plot-choice-section" hidden><div class="section-title"><h2>เลือกพล็อต</h2><button id="new-plots" class="text-button">↻ ขอพล็อตชุดใหม่</button></div><p class="hint">เลือกเรื่องที่ชอบ แล้วส่งคำสั่งขยายเรื่องให้ Meta AI ก่อนเข้าสู่ตัวละคร</p><div id="plot-options"></div></div>
+  </section>
+  <section id="cast" hidden>
+    <div class="section-title"><h2>ออกแบบตัวละคร</h2><button id="add-cast" class="text-button">+ เพิ่มตัวละคร</button></div>
+    <p class="intro">กำหนดหน้าตาและชุดให้ต่อเนื่อง ก่อนเตรียมฉาก</p>
+    <p id="cast-plot-title" class="hint"></p>
+    <label>รายละเอียดตัวละครจากพล็อต<textarea id="cast-summary" rows="3" maxlength="6000" placeholder="ข้อมูลจากพล็อต หรือรายละเอียดที่คุณเขียนเอง"></textarea></label>
+    <div id="cast-list"></div>
+    <details class="cast-tools"><summary>ให้ Meta AI ออกแบบตัวละครและสถานที่ให้ครบ</summary>
+      <button id="prepare-cast-ai" class="secondary wide">เตรียมคำสั่งตัวละครและสถานที่</button>
+      <label>คำสั่งออกแบบตัวละคร<textarea id="cast-ai-request" rows="4" maxlength="20000"></textarea></label>
+      <div class="two"><button id="copy-cast-ai" class="secondary">คัดลอกคำสั่ง</button><button id="send-cast-ai" class="primary">ส่งให้ Meta AI</button></div>
+      <label>คำตอบตัวละครจาก Meta AI<textarea id="cast-ai-response" rows="4" maxlength="100000" placeholder="วาง JSON ที่ Meta AI ตอบ"></textarea></label>
+      <button id="apply-cast-ai" class="secondary wide">ใช้ตัวละครและสถานที่จากคำตอบนี้</button>
+    </details>
+    <details class="cast-tools"><summary>พร้อมต์ภาพตัวละคร</summary>
+      <button id="all-cast-prompts" class="text-button">เตรียมพร้อมต์ภาพทุกตัวละคร</button>
+      <label>พร้อมต์ภาพ<textarea id="cast-image-prompt" rows="6" maxlength="20000" placeholder="กดพร้อมต์ภาพบนตัวละครที่ต้องการ"></textarea></label>
+      <div class="two"><button id="copy-cast-image" class="secondary">คัดลอก</button><button id="send-cast-image" class="primary">ส่งเจนภาพ</button></div>
+      <p class="hint">ส่งพร้อมต์ให้ Meta AI เจนภาพ ตรวจและเก็บภาพบนเว็บเอง ภาพที่เจนจะแสดงบนการ์ดในหน้านี้ ยังไม่แนบภาพอ้างอิงให้ฉากอัตโนมัติ</p>
+    </details>
+    <div class="cast-tools">
+      <label class="toggle-row"><span>สินค้าในเรื่อง <small>(ไม่บังคับ)</small></span><input id="product-enabled" type="checkbox"></label>
+      <label id="product-label" hidden>รายละเอียดสินค้า<textarea id="cast-product" rows="2" maxlength="2000" placeholder="ชื่อสินค้า รูปลักษณ์ และฉากที่อยากให้ปรากฏ"></textarea></label>
+    </div>
+    <div class="cast-tools"><div class="section-title"><h3>สถานที่ในเรื่อง</h3><button id="add-location" class="text-button">+ เพิ่มสถานที่</button></div>
+      <label>รายละเอียดสถานที่<textarea id="cast-locations" rows="3" maxlength="3000" placeholder="เช่น เรือนไทยไม้ริมคลอง ระเบียงหันไปทางท่าน้ำ"></textarea></label>
+    </div>
+
+    <div class="two"><button id="back-plot" class="secondary">← กลับไปพล็อต</button><button id="cast-next" class="primary">ต่อไป: สตอรี่บอร์ด →</button></div>
+  </section>
+  <section id="scenes" hidden>
+    <div class="section-title"><h2>สร้างวิดีโอ</h2><button id="add-scene" class="text-button">+ เพิ่มฉาก</button></div>
+    <p class="intro">ส่งทีละฉาก แล้วตรวจผลบน Meta AI</p>
+
+    <label>ตอน<select id="episode-filter"></select></label>
+    <div id="scene-list"></div>
+    <div id="empty" class="empty">เริ่มจากตั้งค่าซีรีส์ แล้วสร้างโครงฉากของคุณ</div>
+    <article id="editor" hidden>
+      <div class="editor-head"><h3 id="editor-title"></h3><span id="scene-status"></span></div>
+      <label>เนื้อหาฉาก<textarea id="scene-description" rows="3" maxlength="6000" placeholder="ใคร ทำอะไร ที่ไหน และกล้องเคลื่อนอย่างไร"></textarea></label>
+      <label>บทสนทนาและอารมณ์<textarea id="scene-dialogue" rows="3" maxlength="2000" placeholder="มิน (กังวล): เจ้าจะกลับมาไหม?&#10;ธาร (อ่อนโยน): ข้าสัญญา"></textarea></label>
+      <button id="rebuild" class="text-button">↻ ประกอบพร้อมต์จากฉากนี้</button>
+      <label>พร้อมต์ที่ส่งจริง<textarea id="scene-prompt" rows="7" maxlength="20000"></textarea></label>
+      <div class="two"><button id="copy" class="secondary">คัดลอก</button><button id="fill" class="secondary">ใส่ใน Meta AI</button></div>
+      <button id="send" class="primary wide">ส่งพร้อมต์และกดเจน <span>↗</span></button>
+      <p class="hint">ถ้าหาปุ่มเจนไม่พบ จะกรอกพร้อมต์ไว้ให้คุณกดเอง<br>ยังไม่ตรวจการเจนเสร็จหรือดาวน์โหลดคลิปอัตโนมัติ</p>
+      <label>ลิงก์ผลลัพธ์ / หมายเหตุ<input id="scene-result" maxlength="2000" placeholder="วางลิงก์หรือชื่อไฟล์คลิปที่เก็บไว้"></label>
+      <div class="two"><button id="done" class="secondary">✓ ยืนยันฉากเสร็จ</button><button id="next" class="secondary">ฉากถัดไป →</button></div>
+    </article>
+  </section>
+
+  <section id="storyboard" hidden><div class="section-title"><h2>สตอรี่บอร์ด</h2></div><p class="intro">ลำดับเหตุการณ์และบทสนทนาของซีรีส์ เลือกฉากเพื่อแก้ไขและสร้างวิดีโอ</p><div id="storyboard-list"></div><button class="secondary wide" data-go="images">ต่อไป: สร้างภาพ →</button></section>
+    <section id="images" hidden>
+    <div class="section-title"><h2>ภาพตัวละครและสถานที่</h2><button id="open-create" class="text-button">เปิด Meta Create ↗</button></div>
+    <p class="intro">เจนทีละรายการ แล้วเลือกภาพจากผลงานกลับมาเก็บในโปรเจกต์</p>
+    <div class="two"><button id="assets-from-cast" class="secondary">ใช้ตัวละครในเรื่อง</button><button id="asset-add-location" class="secondary">+ สถานที่</button></div>
+    <button id="asset-add-character" class="text-button">+ ตัวละครใหม่</button>
+    <p id="asset-progress" class="hint"></p>
+    <button id="asset-next-missing" class="secondary wide">เลือกรายการถัดไปที่ยังไม่มีภาพ</button>
+    <div id="asset-list"></div>
+    <article id="asset-editor" hidden>
+      <h3 id="asset-editor-title"></h3>
+      <label>ชื่อ<input id="asset-name" maxlength="120"></label>
+      <label>รายละเอียด<textarea id="asset-description" rows="3" maxlength="3000"></textarea></label>
+      <button id="asset-rebuild" class="text-button">ประกอบพร้อมต์ภาพ</button>
+      <label>พร้อมต์ภาพ<textarea id="asset-prompt" rows="5" maxlength="20000"></textarea></label>
+      <div class="two"><button id="asset-copy" class="secondary">คัดลอก</button><button id="asset-generate" class="primary">ส่งเจนภาพ</button></div>
+      <p id="image-job-status" class="hint">เปิดหน้า Meta Create ก่อนส่งเจน</p>
+    </article>
+    <div class="section-title"><h3>ภาพจาก Meta AI</h3><button id="read-media" class="text-button">↻ อ่านภาพจากหน้านี้</button></div>
+    <p class="hint">อ่านเฉพาะภาพที่เว็บโหลดแล้ว เลือกรายการตัวละครหรือสถานที่ด้านบน แล้วกดใช้ภาพที่ต้องการ ลิงก์ภาพอาจหมดอายุ ให้อ่านใหม่จากเว็บเมื่อจำเป็น</p>
+    <div id="media-gallery"></div>
+    <details class="cast-tools"><summary>ตรวจการเชื่อมต่อภาพ</summary><button id="inspect-media" class="text-button">ตรวจโครงสร้างหน้าสื่อ</button><label>ผลการตรวจ<textarea id="media-debug" rows="5" readonly></textarea></label></details>
+  </section>
+  <section id="audio" hidden><div class="section-title"><h2>ใส่เสียง</h2></div><p class="intro">เตรียมบทสนทนาและกำหนดเสียงที่จะใช้ตอนเจนวิดีโอ</p><label>เสียงของซีรีส์<select id="audio-mode"><option>มีบทพูด</option><option>เสียงบรรยากาศ ไม่มีบทพูด</option><option>ไม่มีเสียง</option></select></label>    <details class="cast-tools"><summary>ให้ AI คิดบทพูดทุกฉากเดิม</summary>
+      <p class="hint">ใส่เหตุการณ์แต่ละฉากก่อน แล้วให้ AI เขียนบทโต้ตอบพร้อมชื่อผู้พูดให้พอดีกับความยาวคลิป</p>
+      <button id="prepare-dialogue" class="secondary wide">เตรียมคำสั่งคิดบทพูด</button>
+      <label>คำสั่งคิดบทพูด<textarea id="dialogue-request" rows="5" maxlength="500000"></textarea></label>
+      <div class="two"><button id="copy-dialogue" class="secondary">คัดลอกคำสั่ง</button><button id="send-dialogue" class="primary">ส่งให้ Meta AI</button></div>
+      <label>คำตอบบทพูดจาก Meta AI<textarea id="dialogue-response" rows="5" maxlength="500000" placeholder="วาง JSON บทพูดที่ Meta AI ตอบมา"></textarea></label>
+      <button id="apply-dialogue" class="primary wide">ใช้บทพูดกับฉากเดิม</button>
+      <p class="hint">จะเปลี่ยนบทพูดและประกอบพร้อมต์ใหม่ทุกฉาก คลิปที่เจนแล้วต้องเจนใหม่เพื่อให้มีบทพูด</p>
+    </details><div id="audio-scenes"></div><button class="secondary wide" data-go="preview">ต่อไป: พรีวิวหนัง →</button></section>
+  <section id="preview" hidden><div class="section-title"><h2>พรีวิวหนัง</h2></div><p class="intro">เปิดคลิปที่ดาวน์โหลดไว้เพื่อดูภาพและฟังบทพูด หรือตรวจลิงก์ผลงานแต่ละฉาก</p><label>เลือกคลิปจากเครื่อง<input id="preview-file" type="file" accept="video/*"></label><video id="preview-player" controls playsinline hidden></video><p id="preview-status" class="hint">ยังไม่ได้เลือกคลิป</p><div id="preview-scenes"></div></section>
+  <footer><span id="save-label">บันทึกในเครื่องอัตโนมัติ</span><div><button id="export" class="text-button">ส่งออก</button><button id="import" class="text-button">โหลด</button></div></footer>
+  <input id="import-file" type="file" accept=".json,application/json" hidden>
+  <div id="notice" role="status" aria-live="polite" hidden></div>
+</main><script src="core.js"></script><script src="sidepanel.js"></script>
+</body></html>

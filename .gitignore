@@ -1,0 +1,7 @@
+/results/
+/docs/meta-create.html
+/docs/meta-create_files/
+node_modules/
+.env
+.env.*
+!.env.example

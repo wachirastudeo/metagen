@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');globalThis.crypto=require('node:crypto').webcrypto;
+const core=require('../extension/core.js');
+const people=core.parseCast('```json\n'+JSON.stringify({cast:[{name:'มิน',role:'นางเอก',description:'วัย 25 ปี สไบครีม ผมมวย'}]})+'\n```');
+assert.equal(people.length,1);assert.ok(people[0].id);
+const config=core.settings({seriesType:'thai',locations:'เรือนไทยริมน้ำ',productMode:'on',product:'ตะกร้าหวาย'});
+const portrait=core.portraitPrompt(config,people[0]);assert.ok(portrait.includes('สไบครีม'));assert.ok(portrait.includes('ไม่สร้างวิดีโอ'));
+const scene={episode:1,shot:1,description:'มินนั่งท่าน้ำ',dialogue:''};
+assert.ok(core.prompt(config,scene).includes('ตะกร้าหวาย'));assert.ok(core.prompt(config,scene).includes('เรือนไทยริมน้ำ'));
+assert.ok(!core.prompt({...config,productMode:'off'},scene).includes('ตะกร้าหวาย'));
+const scenes=core.createScenes(config);const saved=core.validateProject({version:1,settings:config,scenes,cast:people});
+assert.deepEqual(saved.cast,people);assert.deepEqual(core.validateProject({version:1,settings:config,scenes}).cast,[]);
+assert.throws(()=>core.parseCast('{"cast":[]}'));assert.throws(()=>core.parseCast('{"cast":[{"name":"มิน","role":"นางเอก"}]}'));
+assert.throws(()=>core.validateCast(Array(13).fill(people[0])));
+console.log('PASS: cast AI parsing, portrait prompt, optional products, locations, cast persistence and legacy projects');

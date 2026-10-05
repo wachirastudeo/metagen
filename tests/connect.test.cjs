@@ -1,0 +1,7 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('extension/sidepanel.js','utf8');const fn=source.slice(source.indexOf('async function connect()'),source.indexOf('async function transmit('));
+async function test(result){
+ const nodes={};for(const id of ['connect','connection-detail','connection-label'])nodes[id]={disabled:false,textContent:'',hidden:true,classList:{add(){},remove(){},toggle(){}}};
+ const context={$:id=>nodes[id],meta:()=>result,document:{querySelector:()=>({classList:{add(){},remove(){},toggle(){}}})},setTimeout:fn=>setTimeout(fn,10),clearTimeout};vm.createContext(context);vm.runInContext(fn,context);const promise=context.connect();assert.equal(nodes.connect.disabled,true);assert.match(nodes['connection-label'].textContent,/กำลัง/);await promise;assert.equal(nodes.connect.disabled,false);assert.equal(nodes['connection-detail'].hidden,false);return nodes;
+}
+(async()=>{let n=await test(Promise.resolve({ok:true}));assert.match(n['connection-detail'].textContent,/เชื่อมต่อแล้ว/);n=await test(Promise.resolve({ok:false,error:'รีเฟรช Meta AI'}));assert.equal(n['connection-detail'].textContent,'รีเฟรช Meta AI');n=await test(new Promise(()=>{}));assert.match(n['connection-detail'].textContent,/20 วินาที/);n=await test(Promise.resolve(undefined));assert.match(n['connection-label'].textContent,/ไม่สำเร็จ/);console.log('PASS: visible connect feedback, success, bridge error, timeout and invalid response recovery');})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');
+const core=require('../extension/core.js');
+const image='https://scontent.xx.fbcdn.net/v/image.webp?signature=abc';
+const assets=[{id:'a',kind:'character',name:'ลำดวน',description:'สไบครีม',image,pageUrl:'https://www.meta.ai/create',castId:''}];
+assert.deepEqual(core.validateAssets(assets),assets);
+for(const url of ['javascript:alert(1)','https://fbcdn.net.evil.test/a','https://user:pass@www.meta.ai/a','http://www.meta.ai/a'])assert.equal(core.mediaUrl(url),'');
+assert.throws(()=>core.validateAssets([{...assets[0],image:'https://evil.test/a'}]));
+assert.throws(()=>core.validateAssets([assets[0],assets[0]]));
+assert.deepEqual(core.validateProject({version:1,settings:{},scenes:[]}).assets,[]);
+assert.deepEqual(core.validateProject({version:1,settings:{},scenes:[],assets}).assets,assets);
+const p=core.assetPrompt({seriesType:'thai',orientation:'16:9'},{kind:'location',name:'เรือนริมน้ำ',description:'สวนบัว'});
+for(const text of ['เรือนริมน้ำ','สวนบัว','16:9','ซีรีส์ไทยย้อนยุค'])assert.ok(p.includes(text));
+console.log('PASS: asset round-trip, legacy imports, URL safety and location prompt');
