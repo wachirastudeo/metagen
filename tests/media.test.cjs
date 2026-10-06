@@ -14,5 +14,9 @@ async function read(path,images){
  assert.equal(r.ok,true);assert.deepEqual(Array.from(r.images,x=>x.alt),['generated']);
  r=await read('/create',[img('preset',{after:false}),img('work'),img('hidden',{hidden:true}),img('work')]);
  assert.deepEqual(Array.from(r.images,x=>x.alt),['work']);assert.equal(r.scope,'creations');
+ r=await read('/',[img('home-illustration'),img('avatar',{generated:true})]);
+ assert.equal(r.images.length,0,'Home images must not finish a pending generation');
+ r=await read('/artifacts',[img('artifact-thumbnail')]);
+ assert.equal(r.images.length,0,'unrelated pages do not supply generated images');
  console.log('PASS: generated chat media, search/preset exclusion, hidden images, URL filtering and deduplication');
 })().catch(e=>{console.error(e);process.exitCode=1;});

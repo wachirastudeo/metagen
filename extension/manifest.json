@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ScenePilot — Meta AI Series Studio",
-  "version": "0.6.3",
+  "version": "0.9.9",
   "description": "ตั้งค่าซีรีส์ จัดฉาก และส่งพร้อมต์วิดีโอเข้า Meta AI จากแถบข้าง",
   "minimum_chrome_version": "116",
   "permissions": [

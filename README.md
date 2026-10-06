@@ -1,12 +1,12 @@
 # ScenePilot — Meta AI Series Studio
 
-Chrome extension รุ่นแรก (Manifest V3) สำหรับประกอบ prompt วิดีโอรายฉากแล้วส่งเข้า Meta AI ใช้บัญชีที่ล็อกอินในเว็บ ไม่ใช้ API key หรือเลือกโมเดล
+Chrome extension (Manifest V3) สำหรับประกอบ prompt วิดีโอรายฉากแล้วส่งเข้า Meta AI ใช้บัญชีที่ล็อกอินในเว็บ ไม่ใช้ API key หรือเลือกโมเดล
 
 ## ติดตั้ง
 
 1. เปิด Chrome ไปที่ `chrome://extensions`
 2. เปิด **Developer mode / โหมดนักพัฒนาซอฟต์แวร์**
-3. กด **Load unpacked / โหลดส่วนขยายที่คลายแพ็กแล้ว** แล้วเลือก `D:\metagen\extension`
+3. Choose **Load unpacked** and select the `extension` folder in the extracted package. Local workspace: `/Users/pae/Documents/metagen/extension`.
 4. กดไอคอน ScenePilot เพื่อเปิดแถบข้าง ตั้งตำแหน่งแถบข้างเป็นขวาใน Chrome หากปัจจุบันอยู่ซ้าย (extension ไม่บังคับตำแหน่ง)
 5. เปิด `https://www.meta.ai/` ล็อกอิน และเปิดช่องแชตหรือหน้าสร้างวิดีโอ รีเฟรชหน้าเว็บหลังติดตั้ง
 6. กด **เชื่อมต่อ** ใน ScenePilot
@@ -48,7 +48,7 @@ Chrome extension รุ่นแรก (Manifest V3) สำหรับประ
 
 ตัวเชื่อมใช้ DOM ช่องข้อความและปุ่มที่มีป้ายระบุชัด ไม่ดึง cookies หรือ token ไม่เรียก endpoint ส่วนตัว Meta AI จำกัด host permissions เฉพาะ meta.ai และ www.meta.ai
 
-ทดสอบส่งพล็อตและสร้างภาพกับบัญชี Meta AI ที่ล็อกอินจริงแล้ว แต่ไม่รับประกัน selectors ครอบคลุมทุกหน้าของ Meta AI ชื่อปุ่มหรือ editor เปลี่ยนได้ ยังไม่มีการจับคลิป ดาวน์โหลด รวมคลิป หรือเดินคิววิดีโออัตโนมัติ สถานะส่งแล้วหมายถึงคลิกปุ่มแล้ว ไม่ใช่หลักฐานว่า Meta รับงานหรือเจนเสร็จ ระยะเวลาและสัดส่วนเป็นคำสั่งใน prompt ไม่มีการรับประกันว่าเว็บจะทำตาม
+ทดสอบส่งพล็อตและสร้างภาพกับบัญชี Meta AI ที่ล็อกอินจริงแล้ว แต่ไม่รับประกัน selectors ครอบคลุมทุกหน้าของ Meta AI ชื่อปุ่มหรือ editor เปลี่ยนได้ ยังไม่มีการจับคลิป ดาวน์โหลดจาก Meta AI หรือเดินคิววิดีโออัตโนมัติ แต่รวมไฟล์คลิปที่เลือกในเครื่องได้ สถานะส่งแล้วหมายถึงคลิกปุ่มแล้ว ไม่ใช่หลักฐานว่า Meta รับงานหรือเจนเสร็จ ระยะเวลาและสัดส่วนเป็นคำสั่งใน prompt ไม่มีการรับประกันว่าเว็บจะทำตาม
 
 เมื่อกรอกข้อความสำเร็จแต่ส่งไม่ได้ จะรักษาข้อความไว้ ไม่ส่งซ้ำ ไม่ทับข้อความเดิมในหน้าเว็บ และตรวจความกำกวมของช่องข้อความ/ปุ่มก่อนทำงาน
 
@@ -82,3 +82,81 @@ Chrome extension รุ่นแรก (Manifest V3) สำหรับประ
 ย้ายตัวสร้างและเลือกภาพเข้าแท็บตัวละครแล้ว ไม่มีแท็บภาพแยก การ์ดตัวละครและสถานที่มีปุ่มสร้างภาพ/เจนใหม่และแสดงภาพที่เลือกไว้ เปิด Meta Create ก่อนกดสร้างภาพ ยังคงเจนทีละรายการและเลือกภาพกลับมาด้วยตนเอง
 
 คำสั่งออกแบบขอทั้งตัวละครทุกบทบาทและสถานที่ทุกแห่งที่จำเป็นตามพล็อต (โดยปกติ 6–12 ตัวละครและ 3–8 สถานที่) คำตอบต้องมี cast และ locations จึงนำเข้าได้ พร้อมสร้างรายการภาพครบทุกชื่อ ซิงก์ซ้ำไม่ลบภาพเดิม มีตัวนับภาพที่ยังขาดและปุ่มเลือกรายการที่ยังไม่มีภาพ ไม่ได้เดินคิวเจนภาพทั้งหมดอัตโนมัติ
+
+### Character identity references
+
+In the scene editor, select the characters who appear in the scene. Existing scenes initially match names in their description and dialogue; selecting characters saves an explicit cast list. Save a master portrait for each character in the character/image tab. The scene editor shows those portraits, and preparing a scene adds numbered identity instructions to the prompt. Reuse the same master portrait for every scene featuring that character.
+
+For scenes with character references, ScenePilot fills the prompt without clicking Generate. Store each master locally for ordered attachment, or manually attach remote portraits in the numbered order before generating on the website. If all selected masters are saved locally, the extension selects their files automatically in numbered order. Wait for upload, check the visible images, then generate. Remote or mixed references still require manual attachment. The extension reports file selection, not completed upload, and cannot guarantee identical faces. If a selected character has no master portrait, preparation is blocked until one is selected. Projects preserve the per-scene cast selection on export/import.
+
+Scenes with references now send a JSON instruction object containing stable character IDs, names, appearance descriptions, portrait asset IDs, image URLs and numbered attachment mappings. The scene editor previews and copies this JSON. This is a prompt format, not a Meta API schema; image URLs do not upload images. Attach the portraits before generating.
+
+
+## Episode library and downloads (0.7.0)
+
+1. Generate each scene separately in Meta AI. Download its finished clip.
+2. In **สร้างวิดีโอ**, select the scene and choose its video under **ไฟล์วิดีโอของซีนนี้**. You can preview or download that original file independently.
+3. Open **พรีวิวหนัง** to see episodes and missing clips. Play an episode or the entire series continuously.
+4. Once every scene has a file, use the episode download button or **รวมและโหลดทั้งซีรีส์**. Export produces one WebM with original audio, ordered by episode and scene.
+
+Files stay in local IndexedDB; project JSON contains their metadata, not video bytes. Importing JSON on another machine requires selecting the clips again. Keep original downloads as backups; clearing extension/browser data removes the local copies. Maximum 250 MB per clip and 600 MB per export. Chrome must be able to decode the source file. Exports render in real time at 720×1280 or 1280×720, preserving aspect ratio with black borders. Keep the preview visible until finished; switching away cancels assembly. Cancellation preserves source files. MP4 export and automatic downloading from Meta AI are not implemented.
+
+Test all code with `node --test tests/*.test.cjs`. Browser QA used five synthetic episodes (six clips), verified episode/series exports, audio, ordering, reload persistence and cancellation. See `artifacts/studio-qa.md`.
+
+
+### Export reliability (0.7.1)
+
+Replaced the duration library with a header-only patch for Chrome MediaRecorder output. Encoded clusters and timestamps are preserved; the previous ffmpeg container warning is resolved. Rapid episode switching ignores stale file reads. Failed recorder setup closes audio resources, and cancellation during finalization prevents downloading a cancelled job. Regression tests include a real Chrome recording.
+
+
+## Portable backups (0.8.0)
+
+Open **สำรอง / ย้ายโปรเจกต์พร้อมคลิป** near the bottom of the app and choose **ดาวน์โหลดไฟล์สำรองพร้อมคลิป**. The `.scenepilot` file includes the project and all selected local clips. Scenes without selected clips remain drafts; references to selected files that are missing prevent creating an incomplete backup. **ส่งออก JSON** remains a lightweight project-only export.
+
+Use **โหลด** to restore either JSON or `.scenepilot`. Backup restore checks file sizes, SHA-256 hashes and video decoding before storing media. All clips are inserted in one IndexedDB transaction with new IDs; repeated restores preserve existing files. Project persistence failure leaves the previous active project intact. Cancel before the final commit to keep the current project. Maximum 250 MB per clip, 600 MB of media per backup and 5 MB of project metadata. The backup is an uncompressed ScenePilot container, not a ZIP. Image URLs remain links. Version 0.9.0 and later also include stored local portraits (see below).
+
+Loading a project stops the old playlist and refreshes the visible tab. Project replacement is blocked during generation, clip saving or export. A delayed clip save cannot attach to a different project. Audio-only files incorrectly labeled as video are rejected.
+
+Chrome QA: exported a six-clip, five-episode backup from `127.0.0.1:4173`, restored it into fresh `localhost:4173` storage, reloaded and played the files, then backed up again. All six media hashes matched and all IDs changed. Corrupt backup rejection preserved the existing project; cancellation and an actual duplicate-key transaction confirmed no partial media writes. Desktop and 360 px side-panel layouts had no horizontal overflow; browser console was clean.
+
+Backup format v1: ASCII `SCPILOT1`, a 4-byte big-endian JSON header length, a UTF-8 header (`format`, `version`, validated `project`, ordered `files` manifest), then the original file bytes in manifest order. Each file entry has `kind`, `id`, `name`, `type`, `size` and `sha256`. No executable content is loaded from backups.
+
+
+## Durable master portraits (0.9.0)
+
+On a character card choose **ใช้ภาพหลักจากเครื่อง**, or select an image under **ภาพหลักจากเครื่อง** in the image editor. PNG, JPEG and WebP are supported up to 10 MB, 8192 pixels per dimension and 40 million pixels. The app checks actual file signatures and decoding. File bytes stay locally; projects contain validated metadata. Selecting a new online image replaces the local master selection.
+
+Local images take precedence over source links. Scene references show the saved master and an attachment-order download button. Downloaded filenames use ASCII names and asset identity, and match `reference.local_file.name` in scene JSON. Thai character names remain in the JSON; filenames use `character` when the name has no ASCII letters. Character/asset identities stay stable after backup restore, while local storage IDs are remapped. Missing local masters block filling a scene prompt rather than silently using an old source link. Version 0.9.1 selects all-local masters in order; remote or mixed references use manual attachment. These instructions cannot guarantee identical generated faces.
+
+The **สำรอง / ย้ายโปรเจกต์พร้อมสื่อ** section now includes local portraits and clips. New backups use manifest version 2; the binary container prefix is unchanged, and old version 1 backups remain readable. JSON alone does not contain image or video bytes. Backup restores validate image hashes and decoding before the shared media transaction commits.
+
+Chrome verification used a synthetic PNG fixture, not a generated face-consistency test. The original and attachment download were byte-identical. Fresh-origin restore recovered the local PNG despite an unusable source-link fixture; after reload the decoded preview was 128×128. All five episodes showed the same character ID, asset ID and local attachment filename. A combined portrait-plus-MP4 backup restored both file types.
+
+## Ordered image handoff (0.9.1)
+
+The active Meta AI composer receives saved master files in scene JSON order. Existing attachments, ambiguous inputs, unsupported file types and batches over 20 MB are rejected before changing the prompt. JSON is compacted without changing its data to avoid rich-editor newline truncation. Prompt verification must pass before image selection. Referenced scenes require checking images and pressing Send on Meta AI.
+
+Live Chrome verification uploaded Dao and Joe in order and generated a real scene. The downloaded MP4 is 720×1280, H.264/AAC, 10.237417 seconds. This proves one scene handoff; cross-scene identity consistency and the full five-episode generation are still unverified. All 40 automated tests pass.
+
+## Scene cast isolation (0.9.2)
+
+Automatically composed scene instructions include appearance descriptions only for the selected scene cast. An explicit empty cast excludes people, even when the series has characters. JSON adds `cast_instructions` to keep story-context characters out of the shot. Custom written prompts are preserved. Installed Chrome verification confirmed episode 5 scene 3 uses the same Dao/Joe IDs, master assets and attachment order as episode 1, without the five other cast descriptions. Cross-scene output inspection remains in progress.
+
+## Clip-save persistence (0.9.3)
+
+Selecting a scene clip marks it complete only after strict project persistence succeeds. Storage failure preserves the previous clip reference and status, and displays the actual error. Regression tests cover rejected and delayed persistence; all 42 tests pass. A newly stored but unreferenced media blob may remain after a project-write failure; existing project references and files are preserved.
+
+### Scene text instructions (0.9.4)
+Automatically prepared reference prompts prohibit subtitle overlays while allowing writing explicitly required on scene objects, such as book names and signs. Custom prompts are preserved.
+
+### Cast count constraints (0.9.5)
+Scene reference JSON now includes the distinct selected character count and explicitly excludes extra people and duplicate characters. Automatic prompts include the same constraint. These directions reduce ambiguity but still require checking the generated video.
+
+### Media detection and character names (0.9.6–0.9.7)
+Home illustrations cannot be mistaken for a completed image generation during navigation. Outside the media viewer, image detection accepts generated chat tiles and the Create gallery only. Cast inference excludes a shorter character name embedded inside another character's longer name, while retaining independent mentions and explicit selections. Upload filenames use ASCII to avoid attachment lookup failures reported during live testing; character names and stable IDs remain in scene JSON. All 44 automated tests pass. The updated attachment handoff is under live verification.
+
+### Explicit background people (0.9.8)
+Set **คนในฉากหลังที่ไม่มีชื่อ** to the number of unnamed people explicitly required by a scene (0–12). Named recurring characters still use the selected cast and master portraits. JSON records the background count and total people count; zero continues to prohibit extras. Project exports and portable backups preserve the count. The prompt prevents background people from duplicating named faces; generated output still needs inspection.
+
+### Review notes in the series overview (0.9.9)
+Scene result notes appear beneath their clip filenames in the episode list. Episode counts describe available files; a saved candidate can still have a review or retry note. Notes use plain text and remain part of project exports and backups.

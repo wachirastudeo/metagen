@@ -1,0 +1,60 @@
+{
+  "projectExport": "/Users/pae/Downloads/ห้องสมุดของพี่ดาว (3).json",
+  "backup": "/Users/pae/Downloads/ห้องสมุดของพี่ดาว-backup.scenepilot",
+  "media": [
+    {
+      "kind": "clip",
+      "name": "image_20261005_144814.mp4",
+      "size": 5431462,
+      "sha256": "9210844191fc4c6df177cd18534ed5eeb06b782b1efb04f394e360bd03c2d7db"
+    },
+    {
+      "kind": "clip",
+      "name": "image_20261006_111311.mp4",
+      "size": 4292532,
+      "sha256": "a697eb55481c227e37fc828a40aaa3bea8775141aa77bf064ca5544ba98d0ca8"
+    },
+    {
+      "kind": "portrait",
+      "name": "image_20261005_124135.jpg",
+      "size": 135230,
+      "sha256": "2886a66f76ceb6e709b7a6b83a3551aef144c1aa2c9b3e0bb61d35b93fa6e253"
+    },
+    {
+      "kind": "portrait",
+      "name": "image_20261005_124230.jpg",
+      "size": 94876,
+      "sha256": "cdda0305ce730a93f58eb4a6fdde90087d0ffa3fc5ad4771ab4a536b389fa5fe"
+    },
+    {
+      "kind": "portrait",
+      "name": "image_20261006_111638.jpg",
+      "size": 188759,
+      "sha256": "72e798ea3c704de13b55cb422d0182e17e557d5a9c5e31f193762fcdce52c98d"
+    },
+    {
+      "kind": "portrait",
+      "name": "image_20261006_111824.jpg",
+      "size": 150352,
+      "sha256": "aa1460da5e9c81f62175d9bb849dea555409a6e3374447d0a7f36aba3c66984a"
+    },
+    {
+      "kind": "portrait",
+      "name": "image_20261006_112021.jpg",
+      "size": 104300,
+      "sha256": "97d45bfa02d9ac7ac1b65d58b2751d07166d9bb2a2a74d631a6fc1d0a99b5f01"
+    },
+    {
+      "kind": "portrait",
+      "name": "image_20261006_112146.jpg",
+      "size": 110106,
+      "sha256": "54758f917a32c069a4c5dd12becf16316694daa0ab43f17fa54981f23390278a"
+    },
+    {
+      "kind": "portrait",
+      "name": "image_20261006_112307.jpg",
+      "size": 108895,
+      "sha256": "63ae6f5e7ee37b8f377f6453782f67992da89f14fc3ff96eb7a73b61883e5d2d"
+    }
+  ]
+}

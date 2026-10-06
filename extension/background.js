@@ -37,7 +37,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     // Always use the current tab. Never send a project to a hidden, unrelated tab.
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !isMeta(tab.url)) throw new Error('เปิดแท็บ meta.ai และล็อกอินก่อน แล้วกดเชื่อมต่ออีกครั้ง');
-    return await chrome.tabs.sendMessage(tab.id, { type: 'SCENEPILOT', action: message.action, prompt: message.prompt });
+    return await chrome.tabs.sendMessage(tab.id, { type: 'SCENEPILOT', action: message.action, prompt: message.prompt, attachments: message.attachments });
   })().then(reply).catch(error => reply({ ok: false, error: error.message.includes('Receiving end') ? 'รีเฟรชหน้า Meta AI หลังติดตั้ง extension แล้วลองอีกครั้ง' : error.message }));
   return true;
 });

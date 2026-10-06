@@ -12,8 +12,17 @@
     return choices[0];
   }
   function read(el) { return 'value' in el ? el.value : el.innerText; }
+  function composerRoot(el) {
+    // Meta keeps hidden alternate composers mounted. Use the nearest shared
+    // container of the active editor and its attachment control, not the page.
+    for (let root = el.parentElement; root && root !== document.body; root = root.parentElement) {
+      const controls = [...root.querySelectorAll('button, [role="button"]')];
+      if (controls.some(button => visible(button) && /^(Add attachment|Add|เพิ่มไฟล์แนบ)$/i.test(button.getAttribute('aria-label') || '')) && root.querySelectorAll('input[type="file"]').length === 1) return root;
+    }
+    return el.closest('form') || el.closest('[role="dialog"]') || document;
+  }
   function sendButton(el) {
-    const root = el.closest('form') || el.closest('[role="dialog"]') || document;
+    const root = composerRoot(el);
     const matches = [...root.querySelectorAll('button, [role="button"]')].filter(button => {
       const name = [button.getAttribute('aria-label'), button.getAttribute('title'), button.innerText].join(' ').trim();
       return visible(button) && !button.disabled && button.getAttribute('aria-disabled') !== 'true' && /^(send|submit|generate|create|ส่ง|ส่งข้อความ|สร้าง|สร้างวิดีโอ|เจน)(\s|$)/i.test(name);
@@ -21,12 +30,32 @@
     if (matches.length !== 1) throw new Error('ไม่พบปุ่มส่งที่แน่ชัด พร้อมต์ถูกกรอกแล้ว ให้กดส่งบนหน้า Meta AI เอง');
     return matches[0];
   }
+  function attachmentPlan(el, payload) {
+    if (payload === undefined) return null;
+    if (!Array.isArray(payload) || !payload.length || payload.length > 20) throw new Error('รายการภาพแนบไม่ถูกต้อง');
+    const root = composerRoot(el);
+    const inputs = [...root.querySelectorAll('input[type="file"]')].filter(input => !input.disabled);
+    if (root === document || inputs.length !== 1 || !inputs[0].multiple) throw new Error('ไม่พบช่องแนบภาพที่แน่ชัด กรุณาแนบภาพหลักเอง');
+    if ([...root.querySelectorAll('button, [role="button"]')].some(button => visible(button) && /^(Remove image|Remove attachment|ลบภาพ)$/i.test(button.getAttribute('aria-label') || ''))) throw new Error('มีภาพแนบอยู่แล้ว กรุณาลบภาพเดิมก่อนแนบภาพหลัก');
+    let total = 0;
+    const transfer = new DataTransfer();
+    for (const item of payload) {
+      if (!item || !['image/png','image/jpeg','image/webp'].includes(item.type) || typeof item.name !== 'string' || !item.name || item.name.length > 240 || typeof item.base64 !== 'string' || item.base64.length > 13981016 || !/^[A-Za-z0-9+/]+={0,2}$/.test(item.base64)) throw new Error('ไฟล์ภาพแนบไม่ถูกต้อง');
+      const raw = atob(item.base64);
+      total += raw.length;
+      if (!raw.length || raw.length > 10*1024*1024 || total > 20*1024*1024) throw new Error('ภาพแนบรวมต้องไม่เกิน 20 MB');
+      transfer.items.add(new File([Uint8Array.from(raw, char => char.charCodeAt(0))], item.name, {type:item.type}));
+    }
+    return {input:inputs[0],transfer};
+  }
   function mediaSnapshot() {
     const dialog=document.querySelector('[role="dialog"]');
     const headings=[...document.querySelectorAll('h1,h2,h3,h4,[role="heading"]')];
     const works=headings.find(el=>/^(ผลงาน|Your creations|Creations)$/i.test(el.textContent.trim()));
     const roots=dialog?[dialog]:[document.querySelector('main') || document];
     const found=new Map();
+    // Submission can briefly return to Home; its large illustrations are not generated media.
+    if(!dialog && !location.pathname.startsWith('/prompt/') && !location.pathname.startsWith('/create'))return {ok:true,pageUrl:location.href,images:[],scope:'page'};
     for(const root of roots)for(const img of root.querySelectorAll('img')) {
       // Chat may show web-search illustrations before the generated media.
       if(!dialog && location.pathname.startsWith('/prompt/') && img.getAttribute('data-testid')!=='ur-image-tile')continue;
@@ -66,10 +95,19 @@
       try {
         const el = composer();
         if (read(el).trim()) throw new Error('ช่อง Meta AI มีข้อความอยู่แล้ว กรุณาส่งหรือล้างข้อความเดิมก่อน');
+        const attachments = attachmentPlan(el, message.attachments);
+        if (attachments && message.action !== 'fill') throw new Error('การแนบภาพรองรับการกรอกพร้อมต์เท่านั้น ตรวจภาพบน Meta AI ก่อนกดส่ง');
+        // Rich editors can drop formatting newlines during insertText. Keep
+        // structured prompts on one line without changing any JSON values.
+        let editorPrompt = message.prompt;
+        try {
+          const parsed = JSON.parse(editorPrompt);
+          if (parsed && typeof parsed === 'object') editorPrompt = JSON.stringify(parsed);
+        } catch {}
         el.focus();
         if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
           const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-          Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, message.prompt);
+          Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, editorPrompt);
           el.dispatchEvent(new Event('input', { bubbles: true }));
           el.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
@@ -77,11 +115,17 @@
           const selection = window.getSelection();
           const range = document.createRange(); range.selectNodeContents(el);
           selection.removeAllRanges(); selection.addRange(range);
-          if (!document.execCommand('insertText', false, message.prompt)) throw new Error('ตัวแก้ไขไม่รับข้อความ กรุณาใช้ปุ่มคัดลอกพร้อมต์');
+          if (!document.execCommand('insertText', false, editorPrompt)) throw new Error('ตัวแก้ไขไม่รับข้อความ กรุณาใช้ปุ่มคัดลอกพร้อมต์');
         }
         await new Promise(resolve => setTimeout(resolve, 250));
-        if (read(el).replace(/\r?\n/g, '').trim() !== message.prompt.replace(/\r?\n/g, '').trim()) throw new Error('ตรวจข้อความในช่องไม่สำเร็จ กรุณาคัดลอกพร้อมต์แล้ววางเอง');
+        if (read(el).replace(/\r?\n/g, '').trim() !== editorPrompt.replace(/\r?\n/g, '').trim()) throw new Error('ตรวจข้อความในช่องไม่สำเร็จ กรุณาคัดลอกพร้อมต์แล้ววางเอง');
         filled = true;
+        if (attachments) {
+          attachments.input.files = attachments.transfer.files;
+          attachments.input.dispatchEvent(new Event('change', {bubbles:true}));
+          // File selection is not proof of a completed server upload.
+          return {ok:true,filled:true,submitted:false,attachmentSelection:true,selectedFiles:message.attachments.map(item=>item.name)};
+        }
         if (message.action === 'fill') return { ok: true, filled: true, submitted: false };
         sendButton(el).click();
         // A click does not prove the server accepted a generation.

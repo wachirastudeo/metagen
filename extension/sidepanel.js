@@ -2,19 +2,30 @@ const $ = id => document.getElementById(id);
 const core = SceneCore;
 const extensionMode = !!globalThis.chrome?.runtime?.id;
 let project = { version:1, settings:{...core.defaults}, scenes:[],cast:[] }, selectedId = null, busy=false;
-let saveChain=Promise.resolve(), noticeTimer;
+let saveChain=Promise.resolve(), noticeTimer,projectIOBusy=false;
 let selectedAssetId=null, mediaImages=[], imageJob=null, imagePoll=null, imagePollBusy=false;
 const statuses={draft:'พร้อมต์ร่าง',filled:'กรอกแล้ว',submitted:'ส่งแล้ว · รอตรวจ',done:'เสร็จแล้ว'};
 function notice(text) { clearTimeout(noticeTimer);$('notice').textContent=text; $('notice').hidden=false;noticeTimer=setTimeout(()=>{$('notice').hidden=true;},8000); }
-function persist() {
-  const snapshot=structuredClone(project);
+function writeProject(snapshot){
   $('save-label').textContent='กำลังบันทึก…';
   saveChain=saveChain.catch(()=>{}).then(async()=>{
     if(extensionMode) await chrome.storage.local.set({project:snapshot});
     else localStorage.setItem('scenepilot-preview',JSON.stringify(snapshot));
     $('save-label').textContent='บันทึกในเครื่องแล้ว';
-  }).catch(()=>{$('save-label').textContent='บันทึกไม่สำเร็จ';notice('พื้นที่บันทึกไม่พอหรือไม่พร้อม กรุณาส่งออกโปรเจกต์ไว้ก่อน');});
+  });
   return saveChain;
+}
+function persist() {
+  return writeProject(structuredClone(project)).catch(()=>{$('save-label').textContent='บันทึกไม่สำเร็จ';notice('พื้นที่บันทึกไม่พอหรือไม่พร้อม กรุณาส่งออกโปรเจกต์ไว้ก่อน');});
+}
+function projectWorkInProgress(){return projectIOBusy || busy || !!imageJob || clipSaving || !!assemblyController || portraitSaving;}
+function refreshProject(){
+  const currentPage=document.querySelector('.tab.active')?.dataset.page || 'setup';
+  populate();renderList();renderEditor();renderCast();renderAssets();page(currentPage);
+}
+async function installProject(loaded){
+  await writeProject(structuredClone(loaded));
+  resetStudioForProject();project=loaded;selectedId=project.scenes[0]?.id;selectedAssetId=null;mediaImages=[];$('episode-filter').value='';
 }
 function readSettings() { project.settings=core.settings({...project.settings,...Object.fromEntries(new FormData($('setup-form')))}); }
 function populate() {
@@ -48,6 +59,7 @@ function page(name) {
   });
 }
 function renderWorkflow(name){
+  if(name==='preview'){renderStudio();return;}
   const list=$(name==='storyboard'?'storyboard-list':name==='audio'?'audio-scenes':'preview-scenes');list.replaceChildren();
   if(name==='audio')$('audio-mode').value=project.settings.audio;
   if(!project.scenes.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='ยังไม่มีฉาก เริ่มจากสร้างพล็อตและฉากก่อน';list.append(empty);return;}
@@ -90,11 +102,34 @@ function renderEditor() {
   if(!scene) return;
   $('editor-title').textContent=`ตอน ${scene.episode} · ฉาก ${scene.shot}`;
   $('scene-status').textContent=statuses[scene.status];
+  $('scene-background-count').value=scene.backgroundCount ?? 0;
+  $('scene-background-count').disabled=busy;
+  renderSceneCast(scene);
+  renderSceneClip(scene);
   for(const [id,key] of [['scene-description','description'],['scene-dialogue','dialogue'],['scene-prompt','prompt'],['scene-result','result']]) $(id).value=scene[key];
 }
-async function meta(action,prompt) {
+function renderSceneCast(scene) {
+  const list=$('scene-cast');list.replaceChildren();
+  const chosen=core.sceneCast(project,scene).map(person=>person.id);
+  for(const person of project.cast || []){
+    const row=document.createElement('div'),label=document.createElement('label'),check=document.createElement('input');
+    check.type='checkbox';check.checked=chosen.includes(person.id);check.disabled=busy;
+    check.onchange=()=>{scene.castIds=[...list.querySelectorAll('input:checked')].map(input=>input.value);scene.status='draft';persist();renderEditor();renderList();};
+    check.value=person.id;label.append(check,document.createTextNode(person.name));row.append(label);
+    if(check.checked){
+      const ref=core.sceneReferences(project,scene).find(ref=>ref.person.id===person.id);
+      if(ref?.asset?.image || ref?.asset?.portrait){const image=document.createElement('img');image.alt=person.name;image.width=80;image.referrerPolicy='no-referrer';row.append(image);showPortrait(ref.asset,image);const download=document.createElement('button');download.className='text-button';download.textContent=`ภาพแนบ ${chosen.indexOf(person.id)+1} · ${person.name}`;download.onclick=()=>downloadPortrait(ref.asset);row.append(download);}
+      else{const missing=document.createElement('small');missing.textContent='ยังไม่มีภาพหลัก — เลือกภาพในแท็บตัวละครก่อน';row.append(missing);}
+    }
+    list.append(row);
+  }
+  if(!project.cast?.length)list.textContent='เพิ่มตัวละครในแท็บตัวละครก่อน';
+  try{$('scene-json').value=JSON.stringify(core.sceneJSON(project,scene),null,2);$('copy-scene-json').disabled=busy;}
+  catch(error){$('scene-json').value=error.message;$('copy-scene-json').disabled=true;}
+}
+async function meta(action,prompt,attachments) {
   if(!extensionMode) return {ok:false,error:'นี่คือหน้าพรีวิว ติดตั้ง extension ใน Chrome เพื่อเชื่อม Meta AI'};
-  return await chrome.runtime.sendMessage({type:'META_COMMAND',action,prompt});
+  return await chrome.runtime.sendMessage({type:'META_COMMAND',action,prompt,attachments});
 }
 async function connect() {
   if($('connect').disabled)return;
@@ -119,16 +154,21 @@ async function transmit(action) {
   if(['submitted','done'].includes(scene.status)) return notice('ฉากนี้ส่งแล้ว หากต้องการเจนใหม่ ให้แก้พร้อมต์ก่อนเพื่อเปิดการส่งอีกครั้ง');
   busy=true;
   for(const id of ['send','fill','rebuild','done','next','add-scene','import']) $(id).disabled=true;
-  for(const id of ['scene-description','scene-dialogue','scene-prompt','scene-result','episode-filter']) $(id).disabled=true;
-  renderList();
+  for(const id of ['scene-description','scene-dialogue','scene-prompt','scene-result','scene-background-count','episode-filter']) $(id).disabled=true;
+  renderList();renderSceneCast(scene);
   try {
-    const result=await meta(action,scene.prompt);
+    const references=core.sceneReferences(project,scene);
+    const prompt=core.referencePrompt(project,scene);
+    await ensurePortraitReferences(references);
+    const attachments=await portraitAttachments(references);
+    const result=await meta(references.length?'fill':action,prompt,attachments);
+    if(result.ok && references.length){scene.status='filled';notice(result.attachmentSelection?'เลือกภาพหลักตามลำดับแล้ว รออัปโหลดและตรวจภาพบน Meta AI ก่อนกดเจน':'กรอกพร้อมต์อ้างอิงแล้ว แนบภาพหลักตามลำดับใน Meta AI และกดเจนบนเว็บ');await persist();return;}
     if(result.filled) scene.status=result.submitted?'submitted':'filled';
     notice(result.ok?(result.submitted?'กดส่งแล้ว ตรวจว่าการเจนเริ่มขึ้นบน Meta AI และยืนยันฉากเสร็จเมื่อได้คลิป':'กรอกพร้อมต์แล้ว กดเจนบนหน้า Meta AI ได้เลย'):result.error);
     await persist();
-  } catch { notice('ไม่ได้รับคำตอบจากหน้า Meta AI ตรวจหน้าเว็บก่อนลองใหม่เพื่อป้องกันการส่งซ้ำ'); }
+  } catch(error) { notice(error.message || 'ไม่ได้รับคำตอบจากหน้า Meta AI ตรวจหน้าเว็บก่อนลองใหม่เพื่อป้องกันการส่งซ้ำ'); }
   finally {
-    busy=false;for(const id of ['send','fill','rebuild','done','next','add-scene','import','scene-description','scene-dialogue','scene-prompt','scene-result','episode-filter']) $(id).disabled=false;
+    busy=false;for(const id of ['send','fill','rebuild','done','next','add-scene','import','scene-description','scene-dialogue','scene-prompt','scene-result','scene-background-count','episode-filter']) $(id).disabled=false;
     renderList();renderEditor();
   }
 }
@@ -137,6 +177,7 @@ document.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>page(el.datase
 let previewUrl;
 $('preview-file').onchange=()=>{
   const file=$('preview-file').files[0];if(!file)return;
+  stopStudioPlayback();
   if(previewUrl)URL.revokeObjectURL(previewUrl);
   previewUrl=URL.createObjectURL(file);$('preview-player').src=previewUrl;$('preview-player').hidden=false;$('preview-status').textContent=file.name;
 };
@@ -149,17 +190,23 @@ $('connect').onclick=connect;
 $('open-meta').onclick=()=>{if(extensionMode) chrome.tabs.create({url:'https://www.meta.ai/'});else window.open('https://www.meta.ai/','_blank','noopener');};
 $('setup-form').addEventListener('input',()=>{readSettings();estimate();plotMode();persist();});
 $('setup-form').onsubmit=event=>{
-  event.preventDefault();readSettings();
+  event.preventDefault();if(projectWorkInProgress())return notice('รองานปัจจุบันเสร็จก่อนสร้างชุดฉากใหม่');readSettings();
   if(project.settings.plotMode==='ai') {
     $('plot-request').value=core.plotOptionsPrompt(project.settings);
     $('plot-request').scrollIntoView({behavior:'smooth',block:'center'});
     return notice('คำสั่งพร้อมแล้ว ส่งให้ Meta AI คิดในหน้าแชต หรือคัดลอกไปวางเอง');
   }
   if(project.scenes.length && !confirm('สร้างชุดฉากใหม่แทนชุดเดิม? ส่งออกโปรเจกต์ก่อนหากต้องการเก็บฉากเดิม')) return;
-  project.scenes=core.createScenes(project.settings);selectedId=project.scenes[0]?.id;
+  resetStudioForProject();project.scenes=core.createScenes(project.settings);selectedId=project.scenes[0]?.id;
   $('episode-filter').value='';renderList();renderEditor();persist();page('cast');notice('ไปขั้นออกแบบตัวละครแล้ว จากนั้นเพิ่มเหตุการณ์แต่ละฉากก่อนส่งเจน');
 };
 $('episode-filter').onchange=()=>{selectedId=project.scenes.find(s=>s.episode===Number($('episode-filter').value))?.id;renderList();renderEditor();};
+$('scene-background-count').onchange=()=>{
+  const scene=selected();if(!scene || busy)return;
+  const count=Number($('scene-background-count').value);
+  if(!Number.isInteger(count) || count<0 || count>12){$('scene-background-count').value=scene.backgroundCount ?? 0;return notice('จำนวนคนในฉากหลังต้องเป็นจำนวนเต็ม 0–12');}
+  scene.backgroundCount=count;scene.status='draft';persist();renderEditor();renderList();
+};
 for(const [id,key] of [['scene-description','description'],['scene-dialogue','dialogue'],['scene-prompt','prompt'],['scene-result','result']]) $(id).oninput=()=>{
   const scene=selected();if(!scene)return;
   const wasGenerated=scene.prompt===core.prompt(project.settings,scene);
@@ -167,11 +214,12 @@ for(const [id,key] of [['scene-description','description'],['scene-dialogue','di
   if(['description','dialogue'].includes(key) && wasGenerated) {scene.prompt=core.prompt(project.settings,scene);$('scene-prompt').value=scene.prompt;}
   if(key!=='result') scene.status='draft';
   $('scene-status').textContent=statuses[scene.status];persist();
-  renderList();
+  renderList();renderSceneCast(scene);
 };
 // Keep custom prompts intact when changing project settings or descriptions.
 $('rebuild').onclick=()=>{const scene=selected();if(!scene)return;scene.prompt=core.prompt(project.settings,scene);scene.status='draft';renderList();renderEditor();persist();notice('ประกอบพร้อมต์ใหม่แล้ว');};
-$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(selected().prompt);notice('คัดลอกพร้อมต์แล้ว');}catch{notice('คัดลอกไม่สำเร็จ เลือกข้อความในช่องพร้อมต์แล้วกด Ctrl+C');}};
+$('copy-scene-json').onclick=async()=>{try{await navigator.clipboard.writeText(JSON.stringify(core.sceneJSON(project,selected()),null,2));notice('คัดลอก JSON พร้อมชื่อและภาพหลักแล้ว');}catch(error){notice(error.message || 'คัดลอกไม่สำเร็จ');}};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(core.referencePrompt(project,selected()));notice('คัดลอกพร้อมต์แล้ว');}catch(error){notice(error.message || 'คัดลอกไม่สำเร็จ เลือกข้อความในช่องพร้อมต์แล้วกด Ctrl+C');}};
 $('fill').onclick=()=>transmit('fill');$('send').onclick=()=>transmit('send');
 $('done').onclick=()=>{const s=selected();if(!s)return;s.status='done';renderList();renderEditor();persist();notice('บันทึกว่าฉากนี้เสร็จแล้วตามการยืนยันของคุณ');};
 $('next').onclick=()=>{
@@ -232,7 +280,7 @@ $('new-plots').onclick=()=>{
   notice('เตรียมคำสั่งขอพล็อตชุดใหม่แล้ว ส่งให้ Meta AI และนำคำตอบกลับมา รายการเดิมยังอยู่จนได้ชุดใหม่');
 };
 $('apply-plot').onclick=async()=>{
-  if(busy)return;
+  if(projectWorkInProgress())return notice('รองานปัจจุบันเสร็จก่อนใช้พล็อตใหม่');
   try{
     readSettings();
     const response=$('plot-response').value;
@@ -245,16 +293,17 @@ $('apply-plot').onclick=async()=>{
     const loaded=core.parsePlot(response,project.settings);
     loaded.plotOptions=project.plotOptions || [];
     if(!confirm(`ใช้เรื่อง “${loaded.settings.title}” จำนวน ${loaded.scenes.length} ฉาก${project.scenes.length?' แทนฉากเดิม':''}?`))return;
-    project=loaded;selectedId=project.scenes[0]?.id;populate();$('episode-filter').value='';renderList();renderEditor();await persist();page('cast');notice('โหลดพล็อตแล้ว ตรวจและออกแบบตัวละครก่อนเข้าสู่ฉาก');
+    projectIOBusy=true;const unlock=lockProjectControls();
+    try{await installProject(loaded);}finally{projectIOBusy=false;unlock();refreshProject();}
+    page('cast');notice('โหลดพล็อตแล้ว ตรวจและออกแบบตัวละครก่อนเข้าสู่ฉาก');
   }catch(error){notice('ยังใช้พล็อตไม่ได้: '+error.message);}
 };
 $('import-file').onchange=async()=>{
   try {
     const file=$('import-file').files[0];if(!file)return;
-    if(file.size>5_000_000)throw new Error('ไฟล์ใหญ่เกิน 5 MB');
-    const loaded=core.validateProject(JSON.parse(await file.text()));
-    if(project.scenes.length && !confirm('โหลดโปรเจกต์นี้แทนงานปัจจุบัน?'))return;
-    project=loaded;selectedId=project.scenes[0]?.id;populate();$('episode-filter').value='';renderList();renderEditor();renderCast();await persist();notice('โหลดโปรเจกต์แล้ว');
+    if(projectWorkInProgress())throw new Error('รองานปัจจุบันเสร็จก่อนโหลดโปรเจกต์');
+    if(/\.scenepilot$/i.test(file.name)){await restoreProjectBackup(file);return;}
+    await restoreProjectJSON(file);
   } catch(error){notice('โหลดไม่ได้: '+error.message);}finally{$('import-file').value='';}
 };
 function updateCatalog(changes) {
@@ -283,7 +332,7 @@ function renderCast() {
   project.cast.forEach((person,index)=>{
     const card=document.createElement('article');card.className='cast-card';
     const asset=(project.assets || []).find(a=>a.castId===person.id || (a.kind==='character' && a.name===person.name));
-    if(asset?.image){const img=document.createElement('img');img.src=asset.image;img.alt=person.name;img.referrerPolicy='no-referrer';img.className='cast-portrait';card.append(img);}
+    if(asset?.image || asset?.portrait){const img=document.createElement('img');img.alt=person.name;img.referrerPolicy='no-referrer';img.className='cast-portrait';card.append(img);showPortrait(asset,img);}
     const heading=document.createElement('h3');heading.textContent=`ตัวละคร ${index+1}`;card.append(heading);
     for(const [key,title,limit] of [['name','ชื่อ',120],['role','บทบาท',120],['description','หน้าตา ชุด และบุคลิก',3000]]) {
       const label=document.createElement('label');label.textContent=title;
@@ -291,14 +340,14 @@ function renderCast() {
       field.oninput=()=>{person[key]=field.value;syncCastSummary();};label.append(field);card.append(label);
     }
     const buttons=document.createElement('div');buttons.className='two';
-    const portrait=document.createElement('button');portrait.className='secondary';portrait.textContent=asset?.image?'เจนภาพใหม่':'สร้างภาพตัวละคร';
+    const portrait=document.createElement('button');portrait.className='secondary';portrait.textContent=(asset?.image || asset?.portrait)?'เจนภาพใหม่':'สร้างภาพตัวละคร';
     portrait.onclick=()=>{
       if(!person.name.trim() || !person.description.trim())return notice('ใส่ชื่อและรายละเอียดตัวละครก่อน');
       if(busy || imageJob)return notice('รอภาพที่กำลังเจนก่อน');project.assets=core.syncAssets(project.assets || [],project.cast);selectedAssetId=project.assets.find(a=>a.castId===person.id).id;persist();page('images');$('asset-editor').scrollIntoView({behavior:'smooth',block:'start'});$('asset-generate').click();
     };
     const remove=document.createElement('button');remove.className='text-button';remove.textContent='ลบตัวละคร';
     remove.onclick=()=>{if(!confirm(`ลบตัวละคร ${person.name || index+1}?`))return;project.cast.splice(index,1);syncCastSummary();renderCast();};
-    buttons.append(portrait,remove);card.append(buttons);$('cast-list').append(card);
+    buttons.append(portrait,remove);card.append(buttons);const local=document.createElement('button');local.className='text-button wide';local.textContent='ใช้ภาพหลักจากเครื่อง';local.onclick=()=>chooseCharacterPortrait(person);card.append(local);if(asset?.portrait){const download=document.createElement('button');download.className='text-button wide';download.textContent='ดาวน์โหลดภาพหลัก';download.onclick=()=>downloadPortrait(asset);card.append(download);} $('cast-list').append(card);
   });
 }
 $('add-cast').onclick=()=>{
@@ -328,7 +377,7 @@ $('prepare-dialogue').onclick=()=>{
   try{$('dialogue-request').value=core.dialoguePrompt(project.settings,project.scenes);notice('เตรียมคำสั่งบทพูดครบทุกฉากแล้ว');}catch(error){notice(error.message);}
 };
 $('apply-dialogue').onclick=()=>{
-  if(busy)return notice('รอการส่งปัจจุบันให้เสร็จก่อน');
+  if(projectWorkInProgress())return notice('รองานปัจจุบันเสร็จก่อนเปลี่ยนบทพูด');
   try{
     const dialogues=core.parseDialogues($('dialogue-response').value,project.scenes);
     const config={...project.settings,audio:'มีบทพูด'};
@@ -354,17 +403,17 @@ function currentAsset(){return (project.assets || []).find(a=>a.id===selectedAss
 function renderAssets(){
   project.assets ||= [];
   const chars=project.assets.filter(a=>a.kind==='character'),places=project.assets.filter(a=>a.kind==='location');
-  $('asset-progress').textContent=`ตัวละคร ${chars.filter(a=>a.image).length}/${chars.length} · สถานที่ ${places.filter(a=>a.image).length}/${places.length} มีภาพแล้ว · ยังขาด ${project.assets.filter(a=>!a.image).length} รายการ`;
+  $('asset-progress').textContent=`ตัวละคร ${chars.filter(a=>a.image || a.portrait).length}/${chars.length} · สถานที่ ${places.filter(a=>a.image || a.portrait).length}/${places.length} เลือกภาพแล้ว · ยังขาด ${project.assets.filter(a=>!a.image && !a.portrait).length} รายการ`;
   $('asset-list').replaceChildren();
   if(!project.assets.length){const p=document.createElement('p');p.className='hint';p.textContent='เพิ่มตัวละครหรือสถานที่ที่ต้องการสร้างภาพ';$('asset-list').append(p);}
   for(const asset of project.assets){
     if(asset.kind==='character' && project.cast.some(c=>c.id===asset.castId))continue;
     const card=document.createElement('article');card.className='asset-card'+(asset.id===selectedAssetId?' chosen':'');
-    if(asset.image){const img=document.createElement('img');img.src=asset.image;img.alt=asset.name;img.referrerPolicy='no-referrer';img.loading='lazy';img.onerror=()=>{img.hidden=true;const p=document.createElement('p');p.className='hint';p.textContent='เปิดภาพไม่ได้ ลองอ่านภาพจาก Meta AI ใหม่';card.prepend(p);};card.append(img);}
+    if(asset.image || asset.portrait){const img=document.createElement('img');img.alt=asset.name;img.referrerPolicy='no-referrer';img.loading='lazy';img.onerror=()=>{img.hidden=true;const p=document.createElement('p');p.className='hint';p.textContent='เปิดภาพไม่ได้ ลองอ่านภาพจาก Meta AI ใหม่';card.prepend(p);};card.append(img);showPortrait(asset,img);}
     const title=document.createElement('h3');title.textContent=asset.name || 'ยังไม่มีชื่อ';
     const type=document.createElement('small');type.textContent=asset.kind==='character'?'ตัวละคร':'สถานที่';
     const select=document.createElement('button');select.className='secondary wide';select.textContent='เลือก / แก้ไข / เจนใหม่';select.onclick=()=>{if(busy)return;selectedAssetId=asset.id;renderAssets();renderAssetEditor();};
-    const generate=document.createElement('button');generate.className='primary wide';generate.textContent=asset.image?'เจนภาพใหม่':'สร้างภาพ';generate.onclick=()=>{if(busy || imageJob)return notice('รอภาพที่กำลังเจนก่อน');selectedAssetId=asset.id;renderAssetEditor();$('asset-editor').scrollIntoView({behavior:'smooth',block:'start'});$('asset-generate').click();};
+    const generate=document.createElement('button');generate.className='primary wide';generate.textContent=(asset.image || asset.portrait)?'เจนภาพใหม่':'สร้างภาพ';generate.onclick=()=>{if(busy || imageJob)return notice('รอภาพที่กำลังเจนก่อน');selectedAssetId=asset.id;renderAssetEditor();$('asset-editor').scrollIntoView({behavior:'smooth',block:'start'});$('asset-generate').click();};
     card.append(type,title,select,generate);$('asset-list').append(card);
   }
   if(!currentAsset())selectedAssetId=project.assets[0]?.id;
@@ -374,7 +423,7 @@ function renderAssetEditor(){
   const asset=currentAsset();$('asset-editor').hidden=!asset;if(!asset)return;
   $('asset-editor-title').textContent=asset.kind==='character'?'ภาพตัวละคร':'ภาพสถานที่';
   $('asset-name').value=asset.name;$('asset-description').value=asset.description;$('asset-prompt').value=core.assetPrompt(project.settings,asset);
-  $('asset-generate').disabled=busy || !!imageJob;
+  $('asset-generate').disabled=busy || !!imageJob;renderPortraitEditor(asset);
 }
 function addAsset(kind){
   project.assets ||= [];if(project.assets.length>=60)return notice('รองรับสูงสุด 60 รายการ');
@@ -386,7 +435,7 @@ $('assets-from-cast').onclick=()=>{
   if(!project.cast.length)return notice('เพิ่มหรือออกแบบตัวละครในแท็บตัวละครก่อน');
   try{const count=project.assets.length;project.assets=core.syncAssets(project.assets,project.cast);selectedAssetId ||= project.assets[0]?.id;persist();renderAssets();notice(`ซิงก์ตัวละครครบ เพิ่ม ${project.assets.length-count} รายการ ภาพเดิมยังอยู่`);}catch(e){notice(e.message);}
 };
-$('asset-next-missing').onclick=()=>{if(busy || imageJob)return notice('รอรายการที่กำลังเจนก่อน');const asset=(project.assets || []).find(a=>!a.image);if(!asset)return notice('มีภาพครบทุกตัวละครและสถานที่แล้ว');selectedAssetId=asset.id;renderAssets();$('asset-editor').scrollIntoView({block:'start',behavior:'smooth'});};
+$('asset-next-missing').onclick=()=>{if(busy || imageJob)return notice('รอรายการที่กำลังเจนก่อน');const asset=(project.assets || []).find(a=>!a.image && !a.portrait);if(!asset)return notice('มีภาพครบทุกตัวละครและสถานที่แล้ว');selectedAssetId=asset.id;renderAssets();$('asset-editor').scrollIntoView({block:'start',behavior:'smooth'});};
 for(const [id,key] of [['asset-name','name'],['asset-description','description']])$(id).oninput=()=>{const a=currentAsset();if(!a)return;a[key]=$(id).value;persist();};
 $('asset-rebuild').onclick=()=>{const a=currentAsset();if(a)$('asset-prompt').value=core.assetPrompt(project.settings,a);};
 $('asset-copy').onclick=async()=>{try{await navigator.clipboard.writeText($('asset-prompt').value);notice('คัดลอกพร้อมต์ภาพแล้ว');}catch{notice('คัดลอกไม่สำเร็จ');}};
@@ -399,7 +448,7 @@ function renderMedia(){
     const img=document.createElement('img');img.src=media.src;img.alt=media.alt || 'ภาพจาก Meta AI';img.referrerPolicy='no-referrer';img.loading='lazy';
     img.onerror=()=>{img.hidden=true;const p=document.createElement('p');p.className='hint';p.textContent='ลิงก์ภาพนี้เปิดไม่ได้ ลองเปิดภาพบนเว็บแล้วอ่านใหม่';card.prepend(p);};
     const use=document.createElement('button');use.className='secondary wide';use.textContent='ใช้ภาพนี้กับรายการที่เลือก';
-    use.onclick=()=>{const asset=currentAsset();if(!asset)return notice('เลือกรายการตัวละครหรือสถานที่ก่อน');const src=core.mediaUrl(media.src);if(!src)return notice('ลิงก์ภาพไม่ถูกต้อง');asset.image=src;asset.pageUrl=core.mediaUrl(media.pageUrl);persist();renderCast();renderAssets();notice(`เก็บภาพให้ ${asset.name || 'รายการที่เลือก'} แล้ว`);};
+    use.onclick=()=>{const asset=currentAsset();if(!asset)return notice('เลือกรายการตัวละครหรือสถานที่ก่อน');const src=core.mediaUrl(media.src);if(!src)return notice('ลิงก์ภาพไม่ถูกต้อง');asset.image=src;delete asset.portrait;asset.pageUrl=core.mediaUrl(media.pageUrl);persist();renderCast();renderAssets();notice(`เก็บภาพให้ ${asset.name || 'รายการที่เลือก'} แล้ว`);};
     card.append(img,use);$('media-gallery').append(card);
   }
 }
@@ -435,11 +484,11 @@ $('asset-generate').onclick=async()=>{
   }catch(e){notice(e.message);$('image-job-status').textContent=e.message;}
   finally{busy=false;$('asset-generate').disabled=!!imageJob;}
 };
-(async()=>{
+window.addEventListener('DOMContentLoaded',async()=>{
   try{
     const saved=extensionMode?(await chrome.storage.local.get('project')).project:JSON.parse(localStorage.getItem('scenepilot-preview')||'null');
     if(saved)project=core.validateProject(saved);
   }catch{notice('โหลดงานเดิมไม่ได้ คุณยังโหลดไฟล์โปรเจกต์ที่ส่งออกไว้ได้');}
   selectedId=project.scenes[0]?.id;populate();renderList();renderEditor();
   if(!extensionMode){$('connection-label').textContent='● พรีวิว · ยังไม่ได้ติดตั้ง';}
-})();
+});

@@ -40,6 +40,13 @@
       ids.add(s.id);
       const result={id:s.id,episode:s.episode,shot:s.shot,status:['draft','filled','submitted','done'].includes(s.status)?s.status:'draft'};
       for(const k of ['description','dialogue','prompt','result']) { if(typeof s[k]!=='string' || s[k].length>20000) throw new Error('ข้อความในฉากไม่ถูกต้อง'); result[k]=s[k]; }
+      if(s.clip!==undefined){
+        const clip=s.clip;
+        if(!clip || typeof clip.id!=='string' || !clip.id || clip.id.length>100 || typeof clip.name!=='string' || clip.name.length>240 || !Number.isFinite(clip.size) || clip.size<=0 || !Number.isFinite(clip.duration) || clip.duration<=0 || typeof clip.type!=='string' || !clip.type.startsWith('video/') || clip.type.length>120 || !Number.isInteger(clip.width) || clip.width<1 || !Number.isInteger(clip.height) || clip.height<1)throw new Error('ข้อมูลไฟล์คลิปไม่ถูกต้อง');
+        result.clip={id:clip.id,name:clip.name,size:clip.size,type:clip.type,duration:clip.duration,width:clip.width,height:clip.height};
+      }
+      if(s.castIds!==undefined){if(!Array.isArray(s.castIds) || s.castIds.length>12 || s.castIds.some(id=>typeof id!=='string' || id.length>100))throw new Error('รายการตัวละครในฉากไม่ถูกต้อง');result.castIds=[...new Set(s.castIds)];}
+      if(s.backgroundCount!==undefined){if(!Number.isInteger(s.backgroundCount) || s.backgroundCount<0 || s.backgroundCount>12)throw new Error('จำนวนคนในฉากหลังต้องเป็นจำนวนเต็ม 0–12');result.backgroundCount=s.backgroundCount;}
       return result;
     });
     return {version:1,settings:settings(value.settings),scenes,cast:validateCast(value.cast || []),plotOptions:validatePlotOptions(value.plotOptions || []),assets:validateAssets(value.assets || [])};
@@ -192,8 +199,72 @@
       ids.add(item.id);
       const image=mediaUrl(item.image || '');
       if(item.image && !image)throw new Error('ลิงก์ภาพต้องเป็น HTTPS จาก Meta หรือ CDN ของ Meta');
-      return {id:item.id,kind:item.kind,name:item.name,description:item.description,image,pageUrl:mediaUrl(item.pageUrl || ''),castId:typeof item.castId==='string'?item.castId.slice(0,100):''};
+      const asset={id:item.id,kind:item.kind,name:item.name,description:item.description,image,pageUrl:mediaUrl(item.pageUrl || ''),castId:typeof item.castId==='string'?item.castId.slice(0,100):''};
+      if(item.portrait!==undefined){
+        const p=item.portrait;
+        if(!p || typeof p.id!=='string' || !p.id || p.id.length>100 || typeof p.name!=='string' || p.name.length>240 || !['image/png','image/jpeg','image/webp'].includes(p.type) || !Number.isSafeInteger(p.size) || p.size<=0 || p.size>10*1024*1024 || !Number.isInteger(p.width) || !Number.isInteger(p.height) || p.width<1 || p.height<1 || p.width>8192 || p.height>8192 || p.width*p.height>40000000)throw new Error('ข้อมูลไฟล์ภาพหลักไม่ถูกต้อง');
+        asset.portrait={id:p.id,name:p.name,type:p.type,size:p.size,width:p.width,height:p.height};
+      }
+      return asset;
     });
+  }
+  function sceneCast(project, scene) {
+    const cast=project.cast || [];
+    if(Array.isArray(scene.castIds))return cast.filter(person=>scene.castIds.includes(person.id));
+    const text=`${scene.description}\n${scene.dialogue}`;
+    return cast.filter(person=>{
+      const name=person.name.trim();if(!name)return false;
+      // A longer character name may contain another character's entire name.
+      // Remove those mentions before checking whether the shorter name also appears.
+      const longer=cast.map(item=>item.name.trim()).filter(item=>item.length>name.length && item.includes(name));
+      const ownMentions=longer.reduce((remaining,item)=>remaining.split(item).join(' '),text);
+      return ownMentions.includes(name);
+    });
+  }
+  function sceneReferences(project, scene) {
+    return sceneCast(project,scene).map(person=>({person,asset:(project.assets || []).find(a=>a.kind==='character' && a.castId===person.id) || (project.assets || []).find(a=>a.kind==='character' && a.name===person.name)}));
+  }
+  function portraitFilename(asset){
+    const clean=value=>String(value || '').replace(/[^A-Za-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'') || 'character';
+    const ext=asset.portrait?.type==='image/jpeg'?'jpg':asset.portrait?.type==='image/webp'?'webp':'png';
+    return `${clean(asset.name).slice(0,80)}-${clean(asset.id).slice(0,12)}-master.${ext}`;
+  }
+  function sceneJSON(project, scene) {
+    const refs=sceneReferences(project,scene),c=settings(project.settings);
+    if(refs.some(ref=>!ref.asset?.image && !ref.asset?.portrait))throw new Error('สร้างและเลือกภาพหลักให้ตัวละครในฉากนี้ครบก่อนส่ง');
+    if(Array.isArray(scene.castIds) && scene.castIds.some(id=>!(project.cast || []).some(person=>person.id===id)))throw new Error('ตัวละครที่เลือกถูกลบแล้ว กรุณาเลือกตัวละครในฉากใหม่');
+    const backgroundCount=scene.backgroundCount===undefined?0:scene.backgroundCount;
+    if(!Number.isInteger(backgroundCount) || backgroundCount<0 || backgroundCount>12)throw new Error('จำนวนคนในฉากหลังต้องเป็นจำนวนเต็ม 0–12');
+    const castInstruction=backgroundCount
+      ? `ตัวละครหลักในซีนนี้: ${refs.map(ref=>ref.person.name).join(', ') || 'ไม่มี'} แต่ละชื่อเป็นคนเดียว เพิ่มคนในฉากหลังที่ไม่มีชื่อ ${backgroundCount} คนตามเนื้อหาฉากเท่านั้น รวมทั้งหมด ${refs.length+backgroundCount} คน ไม่สร้างคนซ้ำ ไม่เพิ่มคนอื่น ไม่สลับใบหน้าหรือผู้พูด คนในฉากหลังต้องไม่ใช้ใบหน้าของตัวละครหลัก`
+      : refs.length
+      ? `ตัวละครที่ปรากฏในซีนนี้เท่านั้น: ${refs.map(ref=>ref.person.name).join(', ')} จำนวนตัวละครทั้งหมดตลอดซีน ${refs.length} คน แต่ละชื่อเป็นคนเดียว ไม่สร้างคนซ้ำ ไม่เพิ่มตัวประกอบหรือคนในฉากหลัง ไม่เพิ่มตัวละครอื่นจากบริบทเรื่อง ไม่สลับผู้พูดหรือใบหน้า`
+      : 'ซีนนี้ไม่แสดงตัวละคร ไม่เพิ่มคนจากบริบทเรื่องหรือรายละเอียดตัวละครหลัก';
+    // Scope automatically composed prompts; user-written prompts remain intact.
+    const automatic=scene.prompt===prompt(c,scene);
+    let instructions=automatic && ((project.cast || []).length || backgroundCount)
+      ? [prompt({...c,characters:refs.map(({person})=>`${person.name} (${person.role}): ${person.description}`).join('\n\n')},scene),castInstruction].join('\n\n')
+      : scene.prompt;
+    if(automatic)instructions=instructions.replace('ไม่ใส่ซับหรือตัวหนังสือ','ไม่ใส่ซับหรือข้อความซ้อนบนวิดีโอ แต่คงข้อความบนวัตถุที่ฉากระบุ เช่น ชื่อในสมุดหรือป้าย');
+    return {
+      schema_version:1,task:'generate_video',
+      scene:{id:scene.id,episode:scene.episode,shot:scene.shot,description:scene.description,dialogue:scene.dialogue},
+      video:{aspect_ratio:c.orientation,duration_seconds:c.duration,style:c.style,language:c.language},
+      cast_constraints:{character_count:refs.length+backgroundCount,allow_extra_people:backgroundCount>0,allow_duplicate_characters:false,...(backgroundCount?{background_people_count:backgroundCount}:{})},
+      characters:refs.map(({person,asset},i)=>({character_id:person.id,name:person.name,role:person.role,appearance:person.description,
+        reference:{asset_id:asset.id,attachment_number:i+1,...(asset.portrait?{local_file:{name:portraitFilename(asset),type:asset.portrait.type,size:asset.portrait.size}}:{image_url:asset.image})},
+        identity_constraints:['Match the attached master portrait: face shape, eyes, nose, mouth, skin tone and age.','Preserve hairstyle unless the scene explicitly changes it.','Do not swap or blend identities.']})),
+      instructions,
+      cast_instructions:castInstruction,
+      reference_instructions:'Attach the master portraits in attachment_number order. image_url and local_file are metadata, not uploaded attachments. Reuse the same portrait for this character in every scene. Generate the video, not a JSON response.'
+    };
+  }
+  function referencePrompt(project, scene) {
+    const data=sceneJSON(project,scene);
+    if(!data.characters.length && !scene.backgroundCount)return data.instructions;
+    const text=JSON.stringify(data,null,2);
+    if(text.length>20000)throw new Error('พร้อมต์รวมภาพอ้างอิงเกิน 20,000 ตัวอักษร');
+    return text;
   }
   function assetPrompt(config, asset) {
     if(asset.kind==='character')return portraitPrompt(config,{name:asset.name,role:'ตัวละครในซีรีส์',description:asset.description});
@@ -201,6 +272,6 @@
     return ['สร้างภาพสถานที่สำหรับซีรีส์ ไม่สร้างวิดีโอ',`สถานที่: ${asset.name}\nรายละเอียด: ${asset.description}`,`สไตล์ ${c.style} อัตราส่วน ${c.orientation}`,periodPrompts[c.seriesType],c.era && `ยุค: ${c.era}`,
       'ภาพมุมกว้างเห็นโครงสร้างสถานที่และบรรยากาศชัดเจน แสงสมจริง ไม่มีคน ไม่มีข้อความ ไม่มีโลโก้ ไม่มีกรอบโปสเตอร์'].filter(Boolean).join('\n\n');
   }
-  const api={dialoguePrompt,parseDialogues,validateLocations,syncAssets,parseCatalog,mediaUrl,validateAssets,assetPrompt,validatePlotOptions,parsePlotOptions,plotOptionsPrompt,defaults,settings,prompt,createScenes,validateProject,plotPrompt,parsePlot,validateCast,castRequest,parseCast,portraitPrompt};
+  const api={portraitFilename,sceneJSON,sceneCast,sceneReferences,referencePrompt,dialoguePrompt,parseDialogues,validateLocations,syncAssets,parseCatalog,mediaUrl,validateAssets,assetPrompt,validatePlotOptions,parsePlotOptions,plotOptionsPrompt,defaults,settings,prompt,createScenes,validateProject,plotPrompt,parsePlot,validateCast,castRequest,parseCast,portraitPrompt};
   if(typeof module!=='undefined') module.exports=api; else root.SceneCore=api;
 })(globalThis);

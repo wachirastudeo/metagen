@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),core=require('../extension/core.js'),media=require('../extension/studio-media.js');
+const scenes=[{id:'b',episode:2,shot:1},{id:'c',episode:1,shot:2},{id:'a',episode:1,shot:1}];
+assert.deepEqual(media.ordered(scenes).map(s=>s.id),['a','c','b']);
+assert.deepEqual(media.ordered(scenes,1).map(s=>s.id),['a','c']);
+assert.equal(scenes[0].id,'b');
+assert.equal(media.filename('My/Series','episode-01','webm'),'My-Series-episode-01.webm');
+const scene={...core.createScenes(core.defaults)[0],clip:{id:'clip-a',name:'scene.mp4',size:1000,type:'video/mp4',duration:10,width:720,height:1280}};
+const project={version:1,settings:core.defaults,scenes:[scene]};
+assert.deepEqual(core.validateProject(JSON.parse(JSON.stringify(project))).scenes[0].clip,scene.clip);
+for(const invalid of [{duration:0},{duration:Infinity},{width:0},{id:''},{type:'text/html'},{size:-1}])assert.throws(()=>core.validateProject({...project,scenes:[{...scene,clip:{...scene.clip,...invalid}}]}),/คลิป/);
+assert.equal(core.validateProject({...project,scenes:[{...scene,clip:undefined}]}).scenes[0].clip,undefined);
+console.log('PASS: episode ordering, safe filenames, clip metadata round-trip and invalid clip rejection');

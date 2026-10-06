@@ -64,3 +64,13 @@ button{min-height:36px;transition:background .15s,border-color .15s,box-shadow .
 @media(max-width:800px){.studio-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}.studio-tabs .tab{font-size:12px;gap:8px}}
 @media(max-width:380px){.studio-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}.studio-tabs .tab{font-size:11px;padding:10px 5px;gap:5px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+/* Scene files and episode assembly */
+.clip-tools,.episode-card{padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);margin:16px 0}
+.clip-tools video{width:100%;max-height:320px;background:#000;border-radius:10px}
+.episode-card h3{color:var(--accent);margin:0 0 12px}
+.episode-scenes{list-style:none;padding:0}.episode-scenes li{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding:10px 0;font-size:12px}
+.episode-scenes span{overflow-wrap:anywhere}.episode-scenes button{flex-shrink:0}
+#assembly-job{padding:14px;border:1px solid var(--accent);border-radius:12px;margin:16px 0}#assembly-progress{width:100%;accent-color:var(--accent)}
+#series-progress{padding:12px;background:#ffffff06;border-radius:10px}
+[hidden]{display:none!important}

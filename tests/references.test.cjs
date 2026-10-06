@@ -1,0 +1,75 @@
+const assert=require('node:assert/strict');
+const core=require('../extension/core.js');
+const project={version:1,settings:{...core.defaults},cast:[{id:'a',name:'Alice',role:'lead',description:'curly hair'},{id:'b',name:'Bob',role:'support',description:'short hair'}],assets:[{id:'portrait-a',kind:'character',castId:'a',name:'Alice',description:'curly hair',image:'https://scontent.fbcdn.net/alice.jpg',pageUrl:''}],scenes:[]};
+const scene={id:'scene',episode:1,shot:1,description:'Alice walks alone',dialogue:'',prompt:'Create this scene',result:'',status:'draft'};
+assert.deepEqual(core.sceneCast(project,scene).map(p=>p.id),['a']);
+const family={cast:[{id:'child',name:'ฟ้า'},{id:'mother',name:'แม่ของฟ้า'},{id:'dao',name:'ดาว'}]};
+assert.deepEqual(core.sceneCast(family,{description:'ดาวฟังแม่ของฟ้า',dialogue:''}).map(p=>p.id),['mother','dao']);
+assert.deepEqual(core.sceneCast(family,{description:'ฟ้ายืนข้างแม่ของฟ้า',dialogue:''}).map(p=>p.id),['child','mother']);
+assert.deepEqual(core.sceneCast(family,{description:'แม่ของฟ้า',dialogue:'ฟ้า: สวัสดีค่ะ'}).map(p=>p.id),['child','mother']);
+assert.deepEqual(core.sceneCast(family,{description:'แม่ของฟ้า',dialogue:'',castIds:['child']}).map(p=>p.id),['child']);
+const payload=JSON.parse(core.referencePrompt(project,scene));
+assert.equal(payload.characters[0].name,'Alice');
+assert.equal(payload.characters[0].character_id,'a');
+assert.equal(payload.characters[0].reference.attachment_number,1);
+assert.equal(payload.characters[0].reference.image_url,project.assets[0].image);
+assert.equal(payload.instructions,scene.prompt);
+assert.ok(!core.referencePrompt(project,scene).includes('Bob'));
+scene.castIds=[];assert.equal(core.referencePrompt(project,scene),scene.prompt);
+scene.castIds=['b'];assert.throws(()=>core.referencePrompt(project,scene),/ภาพหลัก/);
+scene.castIds=['a'];project.scenes=[scene];
+const loaded=core.validateProject(JSON.parse(JSON.stringify(project)));
+assert.deepEqual(loaded.scenes[0].castIds,['a']);
+assert.equal(core.sceneReferences(loaded,loaded.scenes[0])[0].asset.image,project.assets[0].image);
+const changed={...project,cast:[{...project.cast[0],name:'Renamed'}]};
+assert.equal(core.sceneReferences(changed,scene)[0].asset.id,'portrait-a');
+assert.throws(()=>core.validateProject({...project,scenes:[{...scene,castIds:'a'}]}),/ตัวละคร/);
+console.log('PASS: scene identity references, explicit empty cast, missing portrait, stable cast ID and project round-trip');
+
+assert.equal(core.sceneJSON(changed,scene).characters[0].character_id,'a');
+assert.equal(core.sceneJSON(changed,scene).characters[0].name,'Renamed');
+scene.castIds=['deleted'];assert.throws(()=>core.sceneJSON(project,scene),/ถูกลบ/);
+scene.castIds=['a'];assert.throws(()=>core.referencePrompt(project,{...scene,prompt:'x'.repeat(20000)}),/20,000/);
+
+const scopedProject={...project,settings:{...core.defaults,characters:'Alice (lead): curly hair\n\nBob (support): short hair'}};
+const autoScene={...scene,castIds:['a']};autoScene.prompt=core.prompt(scopedProject.settings,autoScene);
+const scoped=core.sceneJSON(scopedProject,autoScene);
+assert.ok(scoped.instructions.includes('Alice (lead): curly hair'));
+assert.ok(!scoped.instructions.includes('Bob (support): short hair'),'unselected cast descriptions must not reach an automatic scene prompt');
+assert.ok(scoped.cast_instructions.includes('Alice'));
+assert.ok(!scoped.cast_instructions.includes('Bob'));
+assert.equal(core.sceneJSON(scopedProject,{...autoScene,prompt:'My custom direction mentioning Bob'}).instructions,'My custom direction mentioning Bob','custom instructions are preserved');
+const emptyPrompt=core.referencePrompt(scopedProject,{...autoScene,castIds:[]});
+assert.ok(!emptyPrompt.includes('curly hair'));
+assert.ok(!emptyPrompt.includes('short hair'));
+assert.ok(emptyPrompt.includes('ซีนนี้ไม่แสดงตัวละคร'),'an explicit empty cast cannot fall back to the whole series cast');
+assert.equal(autoScene.prompt,core.prompt(scopedProject.settings,autoScene),'preparing references does not mutate the saved prompt');
+
+const notebookScene={...autoScene,description:'Alice opens a notebook showing Bob’s name',dialogue:'Alice: This is your name.'};
+notebookScene.prompt=core.prompt(scopedProject.settings,notebookScene);
+const notebook=core.sceneJSON(scopedProject,notebookScene);
+assert.ok(!notebook.instructions.includes('ไม่ใส่ซับหรือตัวหนังสือ'),'scene-required writing must not be prohibited by the default audio instruction');
+assert.ok(notebook.instructions.includes('ข้อความบนวัตถุที่ฉากระบุ'));
+assert.equal(notebook.scene.description,notebookScene.description);
+const customTextDirection='Custom: ไม่ใส่ซับหรือตัวหนังสือ';
+assert.equal(core.sceneJSON(scopedProject,{...notebookScene,prompt:customTextDirection}).instructions,customTextDirection);
+
+assert.deepEqual(scoped.cast_constraints,{character_count:1,allow_extra_people:false,allow_duplicate_characters:false});
+assert.ok(scoped.cast_instructions.includes('จำนวนตัวละครทั้งหมดตลอดซีน 1 คน'));
+assert.equal(core.sceneJSON(scopedProject,{...autoScene,castIds:[]}).cast_constraints.character_count,0);
+const groupProject={...scopedProject,assets:[...scopedProject.assets,{id:'portrait-b',kind:'character',castId:'b',name:'Bob',image:'https://scontent.fbcdn.net/bob.jpg'}]};
+const group=core.sceneJSON(groupProject,{...autoScene,castIds:['a','b','a']});
+assert.equal(group.cast_constraints.character_count,2,'cast count represents distinct selected characters, not duplicate IDs');
+assert.deepEqual(group.characters.map(c=>c.reference.attachment_number),[1,2]);
+const villagers=core.sceneJSON(groupProject,{...autoScene,castIds:['a','b'],backgroundCount:2});
+assert.equal(villagers.cast_constraints.character_count,4);
+assert.equal(villagers.cast_constraints.background_people_count,2);
+assert.equal(villagers.cast_constraints.allow_extra_people,true);
+assert.equal(villagers.characters.length,2,'background people do not get named-character identities or attachments');
+assert.ok(villagers.cast_instructions.includes('รวมทั้งหมด 4 คน'));
+const savedExtras=core.validateProject({...project,scenes:[{...scene,backgroundCount:2}]});
+assert.equal(savedExtras.scenes[0].backgroundCount,2);
+for(const backgroundCount of [-1,1.5,13,'2',null]){
+  assert.throws(()=>core.validateProject({...project,scenes:[{...scene,backgroundCount}]}),/0–12/);
+  assert.throws(()=>core.sceneJSON(project,{...scene,backgroundCount}),/0–12/);
+}
