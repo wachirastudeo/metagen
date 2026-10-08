@@ -3,7 +3,7 @@ const core=require('../extension/core.js');
 const people=core.parseCast('```json\n'+JSON.stringify({cast:[{name:'มิน',role:'นางเอก',description:'วัย 25 ปี สไบครีม ผมมวย'}]})+'\n```');
 assert.equal(people.length,1);assert.ok(people[0].id);
 const config=core.settings({seriesType:'thai',locations:'เรือนไทยริมน้ำ',productMode:'on',product:'ตะกร้าหวาย'});
-const portrait=core.portraitPrompt(config,people[0]);assert.ok(portrait.includes('สไบครีม'));assert.ok(portrait.includes('ไม่สร้างวิดีโอ'));
+const portrait=core.portraitPrompt(config,people[0]);assert.ok(portrait.includes('สไบครีม'));assert.ok(portrait.includes('ไม่สร้างวิดีโอ'));assert.ok(portrait.includes('หันหน้าตรงเข้ากล้อง'));assert.ok(portrait.includes('ศีรษะถึงเอว'));assert.ok(!portrait.includes('ตั้งแต่ศีรษะถึงเท้า'));
 const scene={episode:1,shot:1,description:'มินนั่งท่าน้ำ',dialogue:''};
 assert.ok(core.prompt(config,scene).includes('ตะกร้าหวาย'));assert.ok(core.prompt(config,scene).includes('เรือนไทยริมน้ำ'));
 assert.ok(!core.prompt({...config,productMode:'off'},scene).includes('ตะกร้าหวาย'));

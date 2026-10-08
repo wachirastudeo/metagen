@@ -27,12 +27,31 @@ async function installProject(loaded){
   await writeProject(structuredClone(loaded));
   resetStudioForProject();project=loaded;selectedId=project.scenes[0]?.id;selectedAssetId=null;mediaImages=[];$('episode-filter').value='';
 }
+const eraChoices={
+  thai:['ไทยสมัยสุโขทัย','ไทยสมัยอยุธยา','ไทยสมัยธนบุรี','ไทยสมัยรัตนโกสินทร์ตอนต้น'],
+  chinese:['จีนโบราณ · วังหลวงและราชสำนัก','จีนโบราณ · ยุทธภพและจอมยุทธ์','จีนโบราณ · เทพเซียนและโลกแฟนตาซี','จีนโบราณ · ชีวิตชาวบ้านและเมืองการค้า','จีนโบราณ · อาณาจักรสมมติ'],
+  'thai-modern':['ประเทศไทยปัจจุบัน','ประเทศไทยช่วง พ.ศ. 2530–2540'],
+  'chinese-modern':['ประเทศจีนปัจจุบัน','ประเทศจีนช่วงทศวรรษ 1990'],
+  korean:['เกาหลีใต้ปัจจุบัน','เกาหลีใต้ช่วงทศวรรษ 1990'],
+  japanese:['ญี่ปุ่นปัจจุบัน','ญี่ปุ่นช่วงทศวรรษ 1990'],
+  historical:['ยุคโบราณ','ยุคกลาง','ยุคอาณานิคม','ศตวรรษที่ 20'],
+  scifi:['อนาคตอันใกล้','อนาคตไกล'],
+  school:['โรงเรียนปัจจุบัน','มหาวิทยาลัยปัจจุบัน']
+};
+function syncEraChoices(){
+  const select=$('era-preset'), value=$('era-custom').value;
+  const choices=eraChoices[$('setup-form').elements.seriesType.value] || ['ยุคปัจจุบัน'];
+  select.replaceChildren(new Option('ไม่ระบุยุค / สถานที่',''),...choices.map(choice=>new Option(choice,choice)),new Option('ระบุเอง…','custom'));
+  select.value=value ? (choices.includes(value)?value:'custom') : '';
+  $('era-custom-label').hidden=select.value!=='custom';
+}
 function readSettings() { project.settings=core.settings({...project.settings,...Object.fromEntries(new FormData($('setup-form')))}); }
 function populate() {
   for(const [key,value] of Object.entries(project.settings)) {
     const field=$('setup-form').elements.namedItem(key);
     if(field) field.value=String(value);
   }
+  syncEraChoices();
   estimate();plotMode();renderPlotOptions();
 }
 function plotMode() {
@@ -47,7 +66,7 @@ function page(name) {
   $('notice').hidden=true;
   for(const id of ['setup','cast','storyboard','images','scenes','audio','preview']) $(id).hidden=id!==name;
   if(name==='cast'){renderCast();renderAssets();}
-  if(name==='images'){renderCast();renderAssets();}
+  if(name==='images')renderStoryboards();
   if(name==='scenes'){renderList();renderEditor();}
   if(['storyboard','audio','preview'].includes(name))renderWorkflow(name);
   document.querySelectorAll('.tab').forEach(el=>{
@@ -104,17 +123,26 @@ function renderEditor() {
   $('scene-status').textContent=statuses[scene.status];
   $('scene-background-count').value=scene.backgroundCount ?? 0;
   $('scene-background-count').disabled=busy;
+  renderSceneLocation(scene,'scene-location','scene-location-image');
   renderSceneCast(scene);
   renderSceneClip(scene);
   for(const [id,key] of [['scene-description','description'],['scene-dialogue','dialogue'],['scene-prompt','prompt'],['scene-result','result']]) $(id).value=scene[key];
 }
-function renderSceneCast(scene) {
-  const list=$('scene-cast');list.replaceChildren();
+function renderSceneLocation(scene,selectId,imageId){
+  const places=$(selectId),image=$(imageId);releasePortrait(image);image.hidden=true;places.replaceChildren(new Option('ไม่แนบภาพสถานที่',''));
+  for(const asset of project.assets || [])if(asset.kind==='location')places.append(new Option(asset.name || 'สถานที่ไม่มีชื่อ',asset.id));
+  if(scene.locationId && ![...places.options].some(option=>option.value===scene.locationId))places.append(new Option('สถานที่ถูกลบ — เลือกใหม่',scene.locationId));
+  places.value=scene.locationId || '';places.disabled=projectWorkInProgress();
+  const asset=(project.assets || []).find(item=>item.kind==='location' && item.id===scene.locationId);if(asset?.portrait || asset?.image)showPortrait(asset,image);
+}
+$('scene-location').onchange=()=>{const scene=selected();if(!scene || projectWorkInProgress())return;scene.locationId=$('scene-location').value;scene.status='draft';persist();renderEditor();renderList();};
+function renderSceneCast(scene,listId='scene-cast',changed=()=>{renderEditor();renderList();}) {
+  const list=$(listId);for(const image of list.querySelectorAll('img'))releasePortrait(image);list.replaceChildren();
   const chosen=core.sceneCast(project,scene).map(person=>person.id);
   for(const person of project.cast || []){
     const row=document.createElement('div'),label=document.createElement('label'),check=document.createElement('input');
     check.type='checkbox';check.checked=chosen.includes(person.id);check.disabled=busy;
-    check.onchange=()=>{scene.castIds=[...list.querySelectorAll('input:checked')].map(input=>input.value);scene.status='draft';persist();renderEditor();renderList();};
+    check.onchange=()=>{if(projectWorkInProgress())return;scene.castIds=[...list.querySelectorAll('input:checked')].map(input=>input.value);scene.status='draft';persist();changed();};
     check.value=person.id;label.append(check,document.createTextNode(person.name));row.append(label);
     if(check.checked){
       const ref=core.sceneReferences(project,scene).find(ref=>ref.person.id===person.id);
@@ -124,6 +152,7 @@ function renderSceneCast(scene) {
     list.append(row);
   }
   if(!project.cast?.length)list.textContent='เพิ่มตัวละครในแท็บตัวละครก่อน';
+  if(listId!=='scene-cast')return;
   try{$('scene-json').value=JSON.stringify(core.sceneJSON(project,scene),null,2);$('copy-scene-json').disabled=busy;}
   catch(error){$('scene-json').value=error.message;$('copy-scene-json').disabled=true;}
 }
@@ -157,12 +186,14 @@ async function transmit(action) {
   for(const id of ['scene-description','scene-dialogue','scene-prompt','scene-result','scene-background-count','episode-filter']) $(id).disabled=true;
   renderList();renderSceneCast(scene);
   try {
-    const references=core.sceneReferences(project,scene);
+    const references=core.sceneImageReferences(project,scene);
     const prompt=core.referencePrompt(project,scene);
     await ensurePortraitReferences(references);
-    const attachments=await portraitAttachments(references);
-    const result=await meta(references.length?'fill':action,prompt,attachments);
-    if(result.ok && references.length){scene.status='filled';notice(result.attachmentSelection?'เลือกภาพหลักตามลำดับแล้ว รออัปโหลดและตรวจภาพบน Meta AI ก่อนกดเจน':'กรอกพร้อมต์อ้างอิงแล้ว แนบภาพหลักตามลำดับใน Meta AI และกดเจนบนเว็บ');await persist();return;}
+    const allReferences=scene.storyboard?[...references,{person:{name:'สตอรี่บอร์ดซีนนี้'},asset:{id:scene.id,name:'scene',portrait:scene.storyboard}}]:references;
+    await ensurePortraitReferences(allReferences);
+    const attachments=await portraitAttachments(allReferences);
+    const result=await meta(allReferences.length?'fill':action,prompt,attachments);
+    if(result.ok && allReferences.length){scene.status='filled';notice(result.attachmentSelection?'เลือกภาพหลักตามลำดับแล้ว รออัปโหลดและตรวจภาพบน Meta AI ก่อนกดเจน':'กรอกพร้อมต์อ้างอิงแล้ว แนบภาพหลักตามลำดับใน Meta AI และกดเจนบนเว็บ');await persist();return;}
     if(result.filled) scene.status=result.submitted?'submitted':'filled';
     notice(result.ok?(result.submitted?'กดส่งแล้ว ตรวจว่าการเจนเริ่มขึ้นบน Meta AI และยืนยันฉากเสร็จเมื่อได้คลิป':'กรอกพร้อมต์แล้ว กดเจนบนหน้า Meta AI ได้เลย'):result.error);
     await persist();
@@ -189,6 +220,17 @@ $('audio-mode').onchange=()=>{
 $('connect').onclick=connect;
 $('open-meta').onclick=()=>{if(extensionMode) chrome.tabs.create({url:'https://www.meta.ai/'});else window.open('https://www.meta.ai/','_blank','noopener');};
 $('setup-form').addEventListener('input',()=>{readSettings();estimate();plotMode();persist();});
+$('era-preset').addEventListener('change',()=>{
+  $('era-custom').value=$('era-preset').value==='custom'?'':$('era-preset').value;
+  $('era-custom-label').hidden=$('era-preset').value!=='custom';
+  if($('era-preset').value==='custom')$('era-custom').focus();
+  readSettings();persist();
+});
+$('setup-form').elements.seriesType.addEventListener('change',()=>{
+  const oldChoices=Object.values(eraChoices).flat();
+  if(oldChoices.includes($('era-custom').value))$('era-custom').value='';
+  syncEraChoices();readSettings();persist();
+});
 $('setup-form').onsubmit=event=>{
   event.preventDefault();if(projectWorkInProgress())return notice('รองานปัจจุบันเสร็จก่อนสร้างชุดฉากใหม่');readSettings();
   if(project.settings.plotMode==='ai') {
@@ -313,6 +355,15 @@ function updateCatalog(changes) {
   for(const scene of generated)scene.prompt=core.prompt(project.settings,scene);
   populate();persist();
 }
+$('reset-settings').onclick=()=>{
+  if(projectWorkInProgress()){notice('รองานปัจจุบันเสร็จก่อนรีเซ็ตการตั้งค่า');return;}
+  if(!confirm('คืนค่าการสร้างเป็นค่าเริ่มต้น? พล็อต ตัวละคร สถานที่ ซีน และไฟล์สื่อจะยังอยู่ พร้อมต์ที่แก้เองจะยังอยู่'))return;
+  const keys=['plotMode','seriesType','era','genre','orientation','duration','style','language','audio','extra'];
+  updateCatalog(Object.fromEntries(keys.map(key=>[key,core.defaults[key]])));
+  $('plot-request').value='';
+  renderEditor();
+  notice('รีเซ็ตการตั้งค่าการสร้างแล้ว ข้อมูลเรื่องและไฟล์สื่อยังอยู่');
+};
 function syncCastSummary() {
   const summary=project.cast.map(c=>`${c.name || 'ยังไม่มีชื่อ'} (${c.role || 'ยังไม่ระบุบทบาท'}): ${c.description}`).join('\n\n');
   if(summary.length>6000){persist();notice('รายละเอียดตัวละครรวมเกิน 6,000 ตัวอักษร กรุณาย่อก่อนใช้ในพร้อมต์');return false;}
@@ -343,7 +394,7 @@ function renderCast() {
     const portrait=document.createElement('button');portrait.className='secondary';portrait.textContent=(asset?.image || asset?.portrait)?'เจนภาพใหม่':'สร้างภาพตัวละคร';
     portrait.onclick=()=>{
       if(!person.name.trim() || !person.description.trim())return notice('ใส่ชื่อและรายละเอียดตัวละครก่อน');
-      if(busy || imageJob)return notice('รอภาพที่กำลังเจนก่อน');project.assets=core.syncAssets(project.assets || [],project.cast);selectedAssetId=project.assets.find(a=>a.castId===person.id).id;persist();page('images');$('asset-editor').scrollIntoView({behavior:'smooth',block:'start'});$('asset-generate').click();
+      if(busy || imageJob)return notice('รอภาพที่กำลังเจนก่อน');project.assets=core.syncAssets(project.assets || [],project.cast);selectedAssetId=project.assets.find(a=>a.castId===person.id).id;persist();page('cast');$('asset-editor').scrollIntoView({behavior:'smooth',block:'start'});$('asset-generate').click();
     };
     const remove=document.createElement('button');remove.className='text-button';remove.textContent='ลบตัวละคร';
     remove.onclick=()=>{if(!confirm(`ลบตัวละคร ${person.name || index+1}?`))return;project.cast.splice(index,1);syncCastSummary();renderCast();};

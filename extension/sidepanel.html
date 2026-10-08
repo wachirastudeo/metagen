@@ -9,8 +9,8 @@
   <nav class="studio-tabs" aria-label="ส่วนของโปรเจกต์">
     <button class="tab active" data-page="setup" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h10M4 9h7M4 13h5M13 17l6-6 2 2-6 6-3 1z"/></svg>สร้างพล็อต</button>
     <button class="tab" data-page="cast"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3"/><path d="M6 20v-2a6 6 0 0 1 12 0v2M4 5a3 3 0 0 1 0 6M20 5a3 3 0 0 0 0 6M2 19v-2a4 4 0 0 1 3-4M22 19v-2a4 4 0 0 0-3-4"/></svg>ตัวละคร</button>
-    <button class="tab" data-page="storyboard"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l1.8 6.2L20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8zM20 3v4M18 5h4"/></svg>สตอรี่บอร์ด <span id="scene-count">0</span></button>
-    <button class="tab" data-page="images"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="M3 17l5-5 4 4 4-6 5 7"/></svg>สร้างภาพ</button>
+    <button class="tab" data-page="storyboard"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l1.8 6.2L20 11l-6.2 1.8L12 19l-1.8-6.2L4 11l6.2-1.8zM20 3v4M18 5h4"/></svg>ลำดับซีน <span id="scene-count">0</span></button>
+    <button class="tab" data-page="images"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="M3 17l5-5 4 4 4-6 5 7"/></svg>สร้างสตอรี่บอร์ด</button>
     <button class="tab" data-page="scenes"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>สร้างวิดีโอ</button>
     <button class="tab" data-page="audio"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg>ใส่เสียง</button>
     <button class="tab" data-page="preview"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 9h18v11H3zM3 9V4h18v5M7 4l3 5M14 4l3 5"/></svg>พรีวิวหนัง</button>
@@ -19,25 +19,40 @@
     <div class="section-title"><h2>ตั้งค่าซีรีส์</h2><span>01 / 02</span></div>
     <p class="intro">วางเรื่องของคุณ แล้วเปลี่ยนแต่ละฉากเป็นพร้อมต์</p>
     <form id="setup-form">
-      <fieldset><legend>รูปแบบซีรีส์</legend><div class="series-choices">
-        <label><input type="radio" name="seriesType" value="chinese"><span><strong>ซีรีส์จีนย้อนยุค</strong><small>ชุดจีนโบราณ · วังและเมืองเก่า</small></span></label>
-        <label><input type="radio" name="seriesType" value="thai"><span><strong>ซีรีส์ไทยย้อนยุค</strong><small>ชุดไทยตามยุค · เรือนไทยและวิถีชีวิต</small></span></label>
-        <label><input type="radio" name="seriesType" value="general" checked><span><strong>ซีรีส์ทั่วไป</strong><small>กำหนดบรรยากาศเอง</small></span></label>
-      </div></fieldset>
-      <label>ยุค / สถานที่ <span class="optional">(ถ้ามี)</span><input name="era" maxlength="300" placeholder="เช่น จีนสมัยราชวงศ์ถัง / ไทยสมัยอยุธยา"></label>
+      <label>รูปแบบซีรีส์<select name="seriesType">
+        <option value="general">ซีรีส์ทั่วไป / กำหนดเอง</option>
+        <option value="thai">ไทยย้อนยุค</option>
+        <option value="chinese">จีนย้อนยุค</option>
+        <option value="thai-modern">ไทยร่วมสมัย</option>
+        <option value="chinese-modern">จีนร่วมสมัย</option>
+        <option value="korean">เกาหลีร่วมสมัย</option>
+        <option value="japanese">ญี่ปุ่นร่วมสมัย</option>
+        <option value="historical">ประวัติศาสตร์ / ชีวประวัติ</option>
+        <option value="fantasy">โลกแฟนตาซี</option>
+        <option value="scifi">อนาคต / ไซไฟ</option>
+        <option value="family">ครอบครัว / ชีวิตชุมชน</option>
+        <option value="school">วัยเรียน / มหาวิทยาลัย</option>
+        <option value="workplace">ชีวิตการทำงาน</option>
+        <option value="documentary">สารคดี</option>
+        <option value="animation">ซีรีส์แอนิเมชัน</option>
+      </select></label>
+      <label>ยุค / สถานที่ <span class="optional">(ถ้ามี)</span><select id="era-preset" aria-controls="era-custom"></select></label>
+      <label id="era-custom-label" hidden>ระบุยุค / สถานที่เอง<input id="era-custom" name="era" maxlength="300" placeholder="ระบุยุคหรือสถานที่ให้ตรงกับรูปแบบซีรีส์"></label>
       <label>ชื่อซีรีส์<input name="title" maxlength="120" placeholder="เช่น ฝนสุดท้ายที่ร้านกาแฟ"></label>
       <fieldset><legend>พล็อตและเนื้อเรื่อง</legend><div class="orientation"><label><input type="radio" name="plotMode" value="manual" checked><span>เขียนพล็อตเอง</span></label><label><input type="radio" name="plotMode" value="ai"><span>ให้ Meta AI คิด</span></label></div></fieldset>
       <label id="synopsis-label">เรื่องย่อ<textarea name="synopsis" rows="3" maxlength="6000" placeholder="เล่าเรื่องที่อยากสร้าง หรือใส่พล็อตที่เตรียมไว้"></textarea></label>
       <label id="idea-label" hidden>ไอเดียตั้งต้น <span class="optional">(เว้นว่างให้ AI คิดเองได้)</span><textarea name="idea" rows="3" maxlength="4000" placeholder="เช่น รักต่างชนชั้นในเรือนไทยริมน้ำ จบแบบมีความสุข"></textarea></label>
       <label>แนวเรื่อง<select name="genre"><option>ดราม่า</option><option>โรแมนติก</option><option>ตลก</option><option>สยองขวัญ</option><option>แอ็กชัน</option><option>แฟนตาซี</option><option>สืบสวน</option><option>ผจญภัย</option></select></label>
       <fieldset><legend>รูปแบบวิดีโอ</legend><div class="orientation"><label><input type="radio" name="orientation" value="9:16" checked><span><i class="portrait"></i>แนวตั้ง <b>9:16</b></span></label><label><input type="radio" name="orientation" value="16:9"><span><i class="landscape"></i>แนวนอน <b>16:9</b></span></label></div></fieldset>
-      <label>จำนวนตอน<input type="number" name="episodes" min="1" max="30" value="1" required></label>
-      <div class="duration"><label>วินาทีต่อฉาก<select name="duration"><option value="10">10 วินาที</option><option value="8">8 วินาที</option><option value="5">5 วินาที</option></select></label><p id="estimate">AI แบ่งฉากตามเนื้อเรื่อง</p></div>
+      <label>จำนวนตอน<input type="number" name="episodes" min="1" max="30" value="3" required></label>
+      <div class="duration"><label>วินาทีต่อฉาก<select name="duration"><option value="10">10 วินาที</option></select></label><p id="estimate">AI แบ่งฉากตามเนื้อเรื่อง</p></div>
       <label>สไตล์ภาพ<select name="style"><option>สมจริงแบบภาพยนตร์</option><option>แอนิเมชัน 3D</option><option>อนิเมะ</option><option>ภาพยนตร์ย้อนยุค</option><option>สารคดีสมจริง</option></select></label>
       <label>ตัวละครหลัก<textarea name="characters" rows="2" maxlength="6000" placeholder="ชื่อ อายุ หน้าตา ทรงผม และชุดที่ใช้ต่อเนื่อง"></textarea></label>
       <div class="two"><label>ภาษา<input name="language" value="ไทย" maxlength="80"></label><label>เสียง<select name="audio"><option>มีบทพูด</option><option>เสียงบรรยากาศ ไม่มีบทพูด</option><option>ไม่มีเสียง</option></select></label></div>
       <label>ข้อกำหนดเพิ่มเติม<textarea name="extra" rows="2" maxlength="3000" placeholder="เช่น ไม่มีซับ ไม่มีตัวหนังสือ แสงธรรมชาติ"></textarea></label>
       <button id="create-scenes" type="submit" class="primary wide">สร้างฉากและพร้อมต์ <span>→</span></button>
+      <button id="reset-settings" type="button" class="secondary wide">รีเซ็ตการตั้งค่าการสร้าง</button>
+      <p class="hint">คืนค่าแนวเรื่อง รูปแบบภาพ ภาษา เสียง และข้อกำหนด ไม่ลบพล็อต ตัวละคร สถานที่ ซีน หรือไฟล์สื่อ</p>
       <p id="manual-hint" class="hint">สร้างโครงฉากในเครื่อง แก้เนื้อหาได้ก่อนส่ง Meta AI<br>ระยะเวลาและสัดส่วนเป็นคำสั่งในพร้อมต์ ผลจริงขึ้นกับ Meta AI</p>
     </form>
     <div id="ai-plot" hidden>
@@ -78,36 +93,7 @@
       <label>รายละเอียดสถานที่<textarea id="cast-locations" rows="3" maxlength="3000" placeholder="เช่น เรือนไทยไม้ริมคลอง ระเบียงหันไปทางท่าน้ำ"></textarea></label>
     </div>
 
-    <div class="two"><button id="back-plot" class="secondary">← กลับไปพล็อต</button><button id="cast-next" class="primary">ต่อไป: สตอรี่บอร์ด →</button></div>
-  </section>
-  <section id="scenes" hidden>
-    <div class="section-title"><h2>สร้างวิดีโอ</h2><button id="add-scene" class="text-button">+ เพิ่มฉาก</button></div>
-    <p class="intro">ส่งทีละฉาก แล้วตรวจผลบน Meta AI</p>
-
-    <label>ตอน<select id="episode-filter"></select></label>
-    <div id="scene-list"></div>
-    <div id="empty" class="empty">เริ่มจากตั้งค่าซีรีส์ แล้วสร้างโครงฉากของคุณ</div>
-    <article id="editor" hidden>
-      <div class="editor-head"><h3 id="editor-title"></h3><span id="scene-status"></span></div>
-      <label>เนื้อหาฉาก<textarea id="scene-description" rows="3" maxlength="6000" placeholder="ใคร ทำอะไร ที่ไหน และกล้องเคลื่อนอย่างไร"></textarea></label>
-      <label>บทสนทนาและอารมณ์<textarea id="scene-dialogue" rows="3" maxlength="2000" placeholder="มิน (กังวล): เจ้าจะกลับมาไหม?&#10;ธาร (อ่อนโยน): ข้าสัญญา"></textarea></label>
-      <fieldset><legend>ตัวละครและภาพหลักในฉากนี้</legend><div id="scene-cast"></div><p class="hint">เลือกตัวละครที่ปรากฏจริง เปิดภาพหลักและแนบภาพเหล่านี้ใน Meta AI ตามลำดับก่อนกดเจน ใบหน้าอาจคลาดเคลื่อนได้ตามผลของ AI</p></fieldset>
-      <label>คนในฉากหลังที่ไม่มีชื่อ<input id="scene-background-count" type="number" min="0" max="12" step="1" value="0"></label>
-      <p class="hint">ใส่เฉพาะจำนวนคนที่เนื้อหาฉากระบุ เช่น ชาวบ้าน 2 คน ตัวละครที่ต้องใช้หน้าเดิมให้เลือกชื่อด้านบน</p>
-      <details><summary>JSON อ้างอิงตัวละครรายซีน</summary><textarea id="scene-json" rows="8" readonly aria-label="JSON รายซีน"></textarea><button id="copy-scene-json" class="secondary">คัดลอก JSON</button></details>
-      <button id="rebuild" class="text-button">↻ ประกอบพร้อมต์จากฉากนี้</button>
-      <label>พร้อมต์ที่ส่งจริง<textarea id="scene-prompt" rows="7" maxlength="20000"></textarea></label>
-      <div class="two"><button id="copy" class="secondary">คัดลอก</button><button id="fill" class="secondary">ใส่ใน Meta AI</button></div>
-      <button id="send" class="primary wide">ส่งพร้อมต์และกดเจน <span>↗</span></button>
-      <p class="hint">ถ้าหาปุ่มเจนไม่พบ จะกรอกพร้อมต์ไว้ให้คุณกดเอง<br>ยังไม่ตรวจการเจนเสร็จหรือดาวน์โหลดคลิปอัตโนมัติ</p>
-      <div class="clip-tools"><h3>ไฟล์วิดีโอของซีนนี้</h3><label>เลือกคลิปที่เจนแล้ว<input id="scene-clip-file" type="file" accept="video/mp4,video/webm,video/quicktime,.mov,.m4v"></label><p id="scene-clip-status" class="hint" role="status"></p><video id="scene-clip-player" controls playsinline hidden></video><button id="scene-clip-download" class="secondary wide" disabled>ดาวน์โหลดไฟล์ซีนนี้</button><p class="hint">ดาวน์โหลดคลิปจาก Meta AI แล้วเลือกไฟล์ให้ซีนนี้ ไฟล์จะเก็บในเครื่องและนำไปเรียงรวมในพรีวิวหนัง</p></div>
-      <label>ลิงก์ผลลัพธ์ / หมายเหตุ<input id="scene-result" maxlength="2000" placeholder="วางลิงก์หรือชื่อไฟล์คลิปที่เก็บไว้"></label>
-      <div class="two"><button id="done" class="secondary">✓ ยืนยันฉากเสร็จ</button><button id="next" class="secondary">ฉากถัดไป →</button></div>
-    </article>
-  </section>
-
-  <section id="storyboard" hidden><div class="section-title"><h2>สตอรี่บอร์ด</h2></div><p class="intro">ลำดับเหตุการณ์และบทสนทนาของซีรีส์ เลือกฉากเพื่อแก้ไขและสร้างวิดีโอ</p><div id="storyboard-list"></div><button class="secondary wide" data-go="images">ต่อไป: สร้างภาพ →</button></section>
-    <section id="images" hidden>
+    <div class="cast-tools">
     <div class="section-title"><h2>ภาพตัวละครและสถานที่</h2><button id="open-create" class="text-button">เปิด Meta Create ↗</button></div>
     <p class="intro">เจนทีละรายการ แล้วเลือกภาพจากผลงานกลับมาเก็บในโปรเจกต์</p>
     <div class="two"><button id="assets-from-cast" class="secondary">ใช้ตัวละครในเรื่อง</button><button id="asset-add-location" class="secondary">+ สถานที่</button></div>
@@ -132,6 +118,61 @@
     <p class="hint">อ่านเฉพาะภาพที่เว็บโหลดแล้ว เลือกรายการตัวละครหรือสถานที่ด้านบน แล้วกดใช้ภาพที่ต้องการ ลิงก์ภาพอาจหมดอายุ ให้อ่านใหม่จากเว็บเมื่อจำเป็น</p>
     <div id="media-gallery"></div>
     <details class="cast-tools"><summary>ตรวจการเชื่อมต่อภาพ</summary><button id="inspect-media" class="text-button">ตรวจโครงสร้างหน้าสื่อ</button><label>ผลการตรวจ<textarea id="media-debug" rows="5" readonly></textarea></label></details>
+  </div>
+    <div class="two"><button id="back-plot" class="secondary">← กลับไปพล็อต</button><button id="cast-next" class="primary">ต่อไป: ลำดับซีน →</button></div>
+  </section>
+  <section id="scenes" hidden>
+    <div class="section-title"><h2>สร้างวิดีโอ</h2><button id="add-scene" class="text-button">+ เพิ่มฉาก</button></div>
+    <p class="intro">ส่งทีละฉาก แล้วตรวจผลบน Meta AI</p>
+
+    <label>ตอน<select id="episode-filter"></select></label>
+    <div id="scene-list"></div>
+    <div id="empty" class="empty">เริ่มจากตั้งค่าซีรีส์ แล้วสร้างโครงฉากของคุณ</div>
+    <article id="editor" hidden>
+      <div class="editor-head"><h3 id="editor-title"></h3><span id="scene-status"></span></div>
+      <label>เนื้อหาฉาก<textarea id="scene-description" rows="3" maxlength="6000" placeholder="ใคร ทำอะไร ที่ไหน และกล้องเคลื่อนอย่างไร"></textarea></label>
+      <label>บทสนทนาและอารมณ์<textarea id="scene-dialogue" rows="3" maxlength="2000" placeholder="มิน (กังวล): เจ้าจะกลับมาไหม?&#10;ธาร (อ่อนโยน): ข้าสัญญา"></textarea></label>
+      <fieldset><legend>ตัวละครและภาพหลักในฉากนี้</legend><div id="scene-cast"></div><p class="hint">เลือกตัวละครที่ปรากฏจริง เปิดภาพหลักและแนบภาพเหล่านี้ใน Meta AI ตามลำดับก่อนกดเจน ใบหน้าอาจคลาดเคลื่อนได้ตามผลของ AI</p></fieldset>
+      <label>ภาพสถานที่อ้างอิง<select id="scene-location"></select></label>
+      <img id="scene-location-image" alt="ภาพหลักสถานที่ของซีนนี้" class="cast-portrait" hidden>
+      <label>คนในฉากหลังที่ไม่มีชื่อ<input id="scene-background-count" type="number" min="0" max="12" step="1" value="0"></label>
+      <p class="hint">ใส่เฉพาะจำนวนคนที่เนื้อหาฉากระบุ เช่น ชาวบ้าน 2 คน ตัวละครที่ต้องใช้หน้าเดิมให้เลือกชื่อด้านบน</p>
+      <details><summary>JSON อ้างอิงตัวละครรายซีน</summary><textarea id="scene-json" rows="8" readonly aria-label="JSON รายซีน"></textarea><button id="copy-scene-json" class="secondary">คัดลอก JSON</button></details>
+      <button id="rebuild" class="text-button">↻ ประกอบพร้อมต์จากฉากนี้</button>
+      <label>พร้อมต์ที่ส่งจริง<textarea id="scene-prompt" rows="7" maxlength="20000"></textarea></label>
+      <div class="two"><button id="copy" class="secondary">คัดลอก</button><button id="fill" class="secondary">ใส่ใน Meta AI</button></div>
+      <button id="send" class="primary wide">ส่งพร้อมต์และกดเจน <span>↗</span></button>
+      <p class="hint">ถ้าหาปุ่มเจนไม่พบ จะกรอกพร้อมต์ไว้ให้คุณกดเอง<br>ยังไม่ตรวจการเจนเสร็จหรือดาวน์โหลดคลิปอัตโนมัติ</p>
+      <div class="clip-tools"><h3>ไฟล์วิดีโอของซีนนี้</h3><label>เลือกคลิปที่เจนแล้ว<input id="scene-clip-file" type="file" accept="video/mp4,video/webm,video/quicktime,.mov,.m4v"></label><p id="scene-clip-status" class="hint" role="status"></p><video id="scene-clip-player" controls playsinline hidden></video><button id="scene-clip-download" class="secondary wide" disabled>ดาวน์โหลดไฟล์ซีนนี้</button><p class="hint">ดาวน์โหลดคลิปจาก Meta AI แล้วเลือกไฟล์ให้ซีนนี้ ไฟล์จะเก็บในเครื่องและนำไปเรียงรวมในพรีวิวหนัง</p></div>
+      <label>ลิงก์ผลลัพธ์ / หมายเหตุ<input id="scene-result" maxlength="2000" placeholder="วางลิงก์หรือชื่อไฟล์คลิปที่เก็บไว้"></label>
+      <div class="two"><button id="done" class="secondary">✓ ยืนยันฉากเสร็จ</button><button id="next" class="secondary">ฉากถัดไป →</button></div>
+    </article>
+  </section>
+
+  <section id="storyboard" hidden><div class="section-title"><h2>ลำดับซีน</h2></div><p class="intro">ลำดับเหตุการณ์และบทสนทนาของซีรีส์ เลือกฉากเพื่อแก้ไขและสร้างวิดีโอ</p><div id="storyboard-list"></div><button class="secondary wide" data-go="images">ต่อไป: สร้างสตอรี่บอร์ด →</button></section>
+  <section id="images" hidden>
+    <div class="section-title"><h2>สตอรี่บอร์ดรายซีน</h2></div>
+    <p class="intro">หนึ่งภาพต่อซีน สำหรับวิดีโอ 10 วินาที อ้างอิงภาพหลักตัวละครจากแท็บตัวละคร</p>
+    <label>ตอน<select id="board-episode"></select></label>
+    <p id="board-progress" role="status" class="hint"></p>
+    <div id="board-list"></div>
+    <article id="board-editor" hidden>
+      <h3 id="board-title"></h3>
+      <label>เหตุการณ์ของซีน<textarea id="board-description" rows="3" maxlength="6000" placeholder="ใคร ทำอะไร ที่ไหน และภาพเริ่มต้นเป็นอย่างไร"></textarea></label>
+      <label>บทพูดของซีน<textarea id="board-dialogue" rows="2" maxlength="6000" placeholder="ชื่อผู้พูด: บทพูด"></textarea></label>
+      <fieldset><legend>ตัวละครที่ปรากฏในสตอรี่บอร์ด</legend><div id="board-cast"></div></fieldset>
+      <label>คนในฉากหลัง<input id="board-background-count" type="number" min="0" max="12" step="1" value="0"></label>
+      <label>ภาพสถานที่อ้างอิง<select id="board-location"></select></label>
+      <img id="board-location-image" alt="ภาพหลักสถานที่ของสตอรี่บอร์ดนี้" class="cast-portrait" hidden>
+      <img id="board-image" alt="สตอรี่บอร์ดของซีนที่เลือก" class="cast-portrait" hidden>
+      <label>ภาพสตอรี่บอร์ดจากเครื่อง<input id="board-file" type="file" accept="image/png,image/jpeg,image/webp"></label>
+      <p id="board-status" role="status" class="hint"></p>
+      <button id="board-download" class="secondary">ดาวน์โหลดภาพซีนนี้</button>
+      <label>พร้อมต์ภาพสตอรี่บอร์ด<textarea id="board-prompt" rows="7" readonly></textarea></label>
+      <div class="two"><button id="board-copy" class="secondary">คัดลอก JSON</button><button id="board-fill" class="primary">ใส่พร้อมต์และภาพหลักใน Meta AI</button></div>
+      <p class="hint">ตรวจภาพอ้างอิงแล้วกด Send บน Meta AI ดาวน์โหลดภาพที่ได้กลับมาเลือกให้ซีนนี้ ภาพถูกรวมในไฟล์สำรอง .scenepilot</p>
+      <button id="board-video" class="secondary wide">ต่อไป: สร้างวิดีโอซีนนี้ · 10 วินาที</button>
+    </article>
   </section>
   <section id="audio" hidden><div class="section-title"><h2>ใส่เสียง</h2></div><p class="intro">เตรียมบทสนทนาและกำหนดเสียงที่จะใช้ตอนเจนวิดีโอ</p><label>เสียงของซีรีส์<select id="audio-mode"><option>มีบทพูด</option><option>เสียงบรรยากาศ ไม่มีบทพูด</option><option>ไม่มีเสียง</option></select></label>    <details class="cast-tools"><summary>ให้ AI คิดบทพูดทุกฉากเดิม</summary>
       <p class="hint">ใส่เหตุการณ์แต่ละฉากก่อน แล้วให้ AI เขียนบทโต้ตอบพร้อมชื่อผู้พูดให้พอดีกับความยาวคลิป</p>
@@ -162,5 +203,5 @@
   <footer><span id="save-label">บันทึกในเครื่องอัตโนมัติ</span><div><button id="export" class="text-button">ส่งออก JSON</button><button id="import" class="text-button">โหลด</button></div></footer>
   <input id="import-file" type="file" accept=".json,.scenepilot,application/json,application/octet-stream" hidden>
   <div id="notice" role="status" aria-live="polite" hidden></div>
-</main><script src="core.js"></script><script src="webm-duration.js"></script><script src="studio-media.js"></script><script src="project-backup.js"></script><script src="sidepanel.js"></script><script src="studio.js"></script><script src="backup-ui.js"></script><script src="portrait-ui.js"></script>
+</main><script src="core.js"></script><script src="webm-duration.js"></script><script src="studio-media.js"></script><script src="project-backup.js"></script><script src="sidepanel.js"></script><script src="studio.js"></script><script src="backup-ui.js"></script><script src="portrait-ui.js"></script><script src="storyboard-ui.js"></script>
 </body></html>

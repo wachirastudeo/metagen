@@ -9,7 +9,7 @@
     const refs=new Map();
     const add=(metadata,kind)=>{if(!metadata)return;const item={...metadata,kind},old=refs.get(item.id);
       if(old && JSON.stringify(old)!==JSON.stringify(item))throw new Error('ข้อมูลไฟล์ที่ใช้ซ้ำไม่ตรงกัน');refs.set(item.id,item);};
-    for(const scene of project.scenes)add(scene.clip,'clip');
+    for(const scene of project.scenes){add(scene.clip,'clip');add(scene.storyboard,'portrait');}
     for(const asset of project.assets || [])add(asset.portrait,'portrait');
     return refs;
   }
@@ -35,7 +35,7 @@
     const length=new DataView(prefix.buffer).getUint32(8);
     if(!length || length>MAX_HEADER || length+12>blob.size)throw new Error('ส่วนหัวไฟล์สำรองไม่ครบหรือใหญ่เกินกำหนด');
     let header;try{header=JSON.parse(await blob.slice(12,12+length).text());}catch{throw new Error('รายละเอียดไฟล์สำรองอ่านไม่ได้');}
-    if(header?.format!=='scenepilot-backup' || ![1,2].includes(header.version) || !Array.isArray(header.files) || header.files.length>960)throw new Error('รุ่นไฟล์สำรองไม่รองรับ');
+    if(header?.format!=='scenepilot-backup' || ![1,2].includes(header.version) || !Array.isArray(header.files) || header.files.length>1860)throw new Error('รุ่นไฟล์สำรองไม่รองรับ');
     const project=core.validateProject(header.project),refs=references(project),seen=new Set(),files=[];let offset=12+length,total=0;
     for(const item of header.files){
       const clip=item && refs.get(item.id);
@@ -55,7 +55,7 @@
       const record=await inspect(new File([item.blob],item.name,{type:item.type}),{signal});
       const {blob,...metadata}=record;records.push({...record,kind:item.kind});mapping.set(item.id,metadata);
     }
-    aborted(signal);for(const scene of project.scenes)if(scene.clip)scene.clip={...mapping.get(scene.clip.id)};
+    aborted(signal);for(const scene of project.scenes){if(scene.clip)scene.clip={...mapping.get(scene.clip.id)};if(scene.storyboard)scene.storyboard={...mapping.get(scene.storyboard.id)};}
     for(const asset of project.assets || [])if(asset.portrait)asset.portrait={...mapping.get(asset.portrait.id)};
     return {project,records};
   }

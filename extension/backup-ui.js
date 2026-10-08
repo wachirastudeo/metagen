@@ -46,7 +46,7 @@ async function restoreProjectJSON(file){
       $('backup-status').textContent='ยกเลิกแล้ว โปรเจกต์เดิมยังอยู่';return;
     }
     $('backup-cancel').disabled=true;await installProject(loaded);
-    const hasLocalMedia=loaded.scenes.some(scene=>scene.clip) || loaded.assets.some(asset=>asset.portrait);
+    const hasLocalMedia=loaded.scenes.some(scene=>scene.clip || scene.storyboard) || loaded.assets.some(asset=>asset.portrait);
     $('backup-status').textContent=hasLocalMedia?'โหลด JSON แล้ว หากไฟล์คลิปหรือภาพหลักไม่อยู่ในเครื่องนี้ให้เลือกใหม่ หรือโหลดไฟล์สำรอง .scenepilot':'โหลดโปรเจกต์แล้ว';
     notice($('backup-status').textContent);
   });

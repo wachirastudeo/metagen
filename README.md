@@ -160,3 +160,13 @@ Set **คนในฉากหลังที่ไม่มีชื่อ** to
 
 ### Review notes in the series overview (0.9.9)
 Scene result notes appear beneath their clip filenames in the episode list. Episode counts describe available files; a saved candidate can still have a review or retry note. Notes use plain text and remain part of project exports and backups.
+
+### Front-facing character masters (0.9.10)
+
+New character image prompts prioritize a sharp, unobstructed front-facing face at eye level, framed from head to waist. Existing master files remain selected until explicitly replaced; regenerate and select a new master to apply this framing to an existing character.
+
+### Scene storyboards (0.10.0)
+
+The image tab now creates one opening keyframe per scene. Each scene is 10 seconds; older 5/8-second settings normalize to 10 without changing existing clip files. Character/location master tools live under Characters. In Storyboards, select an episode and scene, edit its events/dialogue, choose the visible characters and background people count, and optionally select a location master. Generate/download the image on Meta AI, then import it for that scene. Local storyboard images persist across reloads and travel in portable backups. Video uses the same selections, attaching character masters first, the selected location next, and the scene image last as its opening keyframe. JSON attachment numbers match that order. Missing or deleted references block handoff.
+
+The local Chrome preview has verified editing, character/location selection, missing-reference controls and reload persistence. Actual Meta AI uploads of the new location/storyboard combination remain unverified. Existing footage is preserved when masters change; changing a master does not regenerate completed clips.
