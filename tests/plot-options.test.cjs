@@ -1,13 +1,17 @@
 const assert=require('node:assert/strict');
 const core=require('../extension/core.js');
-const plots=[{title:'รักริมคลอง',synopsis:'หญิงสาวพบรักและฝ่าปัญหาครอบครัว'},{title:'เงาจันทร์',synopsis:'ตามหาความลับในเรือนไทย'}];
+const plots=[{title:'รักริมคลอง',synopsis:'หญิงสาวพบรักและฝ่าปัญหาครอบครัว'},{title:'เงาจันทร์',synopsis:'ตามหาความลับในเรือนไทย'},{title:'ประตูเวลา',synopsis:'นักศึกษาเดินทางข้ามเวลาเพื่อแก้ปริศนา'}];
 assert.deepEqual(core.parsePlotOptions('```json\n'+JSON.stringify({plots})+'\n```'),plots);
 assert.throws(()=>core.parsePlotOptions(JSON.stringify({plots:[plots[0]]})));
+assert.throws(()=>core.parsePlotOptions(JSON.stringify({plots:plots.slice(0,2)})));
+assert.throws(()=>core.parsePlotOptions(JSON.stringify({plots:[...plots,plots[0]]})));
 assert.throws(()=>core.parsePlotOptions(JSON.stringify({plots:[{title:'',synopsis:'x'},plots[1]]})));
 assert.throws(()=>core.parsePlotOptions(JSON.stringify({plots:Array(6).fill(plots[0])})));
 const project={version:1,settings:core.defaults,scenes:[],plotOptions:plots};
 assert.deepEqual(core.validateProject(project).plotOptions,plots);
 assert.deepEqual(core.validateProject({...project,plotOptions:undefined}).plotOptions,[]);
 assert.match(core.plotOptionsPrompt({seriesType:'thai'},plots),/รักริมคลอง/);
+assert.match(core.plotOptionsPrompt({seriesType:'thai'}),/3 เรื่อง/);
 assert.match(core.plotPrompt({...core.defaults,...plots[1]}),/เงาจันทร์/);
+assert.match(core.plotPrompt({...core.defaults,...plots[1],episodes:10}),/ขยายเรื่องนี้เป็น 10 ตอน/);
 console.log('plot options tests passed');

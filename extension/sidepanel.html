@@ -42,7 +42,12 @@
       <fieldset><legend>พล็อตและเนื้อเรื่อง</legend><div class="orientation"><label><input type="radio" name="plotMode" value="manual" checked><span>เขียนพล็อตเอง</span></label><label><input type="radio" name="plotMode" value="ai"><span>ให้ Meta AI คิด</span></label></div></fieldset>
       <label id="synopsis-label">เรื่องย่อ<textarea name="synopsis" rows="3" maxlength="6000" placeholder="เล่าเรื่องที่อยากสร้าง หรือใส่พล็อตที่เตรียมไว้"></textarea></label>
       <label id="idea-label" hidden>ไอเดียตั้งต้น <span class="optional">(เว้นว่างให้ AI คิดเองได้)</span><textarea name="idea" rows="3" maxlength="4000" placeholder="เช่น รักต่างชนชั้นในเรือนไทยริมน้ำ จบแบบมีความสุข"></textarea></label>
-      <label>แนวเรื่อง<select name="genre"><option>ดราม่า</option><option>โรแมนติก</option><option>ตลก</option><option>สยองขวัญ</option><option>แอ็กชัน</option><option>แฟนตาซี</option><option>สืบสวน</option><option>ผจญภัย</option></select></label>
+      <label>แนวเรื่อง / สไตล์เนื้อเรื่อง<select name="genre">
+        <option>ดราม่า</option><option>โรแมนติก</option><option>รักโรแมนติก</option><option>โรแมนติกคอมเมดี้</option><option>รักดราม่า</option>
+        <option>ตลก</option><option>แฟนตาซี</option><option>ทะลุมิติ</option><option>ย้อนเวลา</option><option>เกิดใหม่</option><option>เทพเซียน</option><option>ยุทธภพ</option>
+        <option>สยองขวัญ</option><option>ระทึกขวัญ</option><option>แอ็กชัน</option><option>สืบสวน</option><option>อาชญากรรม</option><option>ผจญภัย</option>
+        <option>ไซไฟ</option><option>ลึกลับ</option><option>ชีวิตครอบครัว</option><option>วัยเรียน</option><option>ชีวิตประจำวัน</option><option>ประวัติศาสตร์</option>
+      </select></label>
       <fieldset><legend>รูปแบบวิดีโอ</legend><div class="orientation"><label><input type="radio" name="orientation" value="9:16" checked><span><i class="portrait"></i>แนวตั้ง <b>9:16</b></span></label><label><input type="radio" name="orientation" value="16:9"><span><i class="landscape"></i>แนวนอน <b>16:9</b></span></label></div></fieldset>
       <label>จำนวนตอน<input type="number" name="episodes" min="1" max="30" value="3" required></label>
       <div class="duration"><label>วินาทีต่อฉาก<select name="duration"><option value="10">10 วินาที</option></select></label><p id="estimate">AI แบ่งฉากตามเนื้อเรื่อง</p></div>
@@ -56,15 +61,10 @@
       <p id="manual-hint" class="hint">สร้างโครงฉากในเครื่อง แก้เนื้อหาได้ก่อนส่ง Meta AI<br>ระยะเวลาและสัดส่วนเป็นคำสั่งในพร้อมต์ ผลจริงขึ้นกับ Meta AI</p>
     </form>
     <div id="ai-plot" hidden>
-      <label>คำสั่งให้ Meta AI คิดเรื่อง<textarea id="plot-request" rows="6" maxlength="20000" placeholder="กดเตรียมคำสั่งจากการตั้งค่าก่อน"></textarea></label>
-      <div class="two"><button id="copy-plot" class="secondary">คัดลอกคำสั่ง</button><button id="send-plot" class="primary">ส่งให้ Meta AI คิด</button></div>
-      <p class="hint">เปิดหน้าแชต Meta AI เพื่อคิดเรื่อง รอคำตอบจบ แล้วคัดลอก JSON มาวางด้านล่าง หรือเลือกข้อความคำตอบบนเว็บแล้วกดอ่าน</p>
-      <button id="read-plot" class="text-button">อ่านข้อความที่เลือกบน Meta AI</button>
-      <label>คำตอบจาก Meta AI<textarea id="plot-response" rows="6" maxlength="500000" placeholder="วาง JSON ที่ Meta AI ตอบมา ไม่ใช่คำสั่งที่ส่งไป"></textarea></label>
-      <button id="apply-plot" class="primary wide">อ่านคำตอบ / แสดงพล็อตให้เลือก <span>→</span></button>
-      <p class="hint">ตรวจข้อมูลก่อนโหลด งานเดิมจะเปลี่ยนเมื่อคุณยืนยันเท่านั้น จากนั้นแก้พล็อตและฉากเองได้</p>
+      <p id="plot-status" class="hint" role="status" aria-live="polite">กดปุ่มด้านบนเพื่อให้ Meta AI เสนอเรื่องย่อ 3 เรื่อง</p>
+      <details id="plot-manual" hidden><summary>นำคำตอบกลับมาเอง</summary><label>คำตอบจาก Meta AI<textarea id="plot-response" rows="6" maxlength="500000" placeholder="วาง JSON ที่ Meta AI ตอบมา"></textarea></label><button id="apply-plot" class="secondary wide">อ่านคำตอบ</button></details>
     </div>
-    <div id="plot-choice-section" hidden><div class="section-title"><h2>เลือกพล็อต</h2><button id="new-plots" class="text-button">↻ ขอพล็อตชุดใหม่</button></div><p class="hint">เลือกเรื่องที่ชอบ แล้วส่งคำสั่งขยายเรื่องให้ Meta AI ก่อนเข้าสู่ตัวละคร</p><div id="plot-options"></div></div>
+    <div id="plot-choice-section" hidden><div class="section-title"><h2>เลือกเรื่องย่อ 1 จาก 3 เรื่อง</h2></div><p class="hint">เลือกเรื่องที่ชอบ ระบบจะส่งเรื่องที่เลือกและจำนวนตอนกลับไปให้ Meta AI ขยายเป็นฉาก</p><div id="plot-options"></div></div>
   </section>
   <section id="cast" hidden>
     <div class="section-title"><h2>ออกแบบตัวละคร</h2><button id="add-cast" class="text-button">+ เพิ่มตัวละคร</button></div>

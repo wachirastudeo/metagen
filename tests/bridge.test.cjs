@@ -10,7 +10,8 @@ async function run(options={}) {
     const remove={getClientRects:()=>[1],getAttribute:()=> 'Remove image'};
     field.parentElement={parentElement:null,querySelectorAll:selector=>selector==='input[type="file"]'?[fileInput]:[attachment,button,...(options.attached?[remove]:[])]};
   }
-  const sandbox={chrome:{runtime:{id:'test',onMessage:{addListener:fn=>listener=fn}}},HTMLTextAreaElement:Textarea,HTMLInputElement:Textarea,Event:class{},getComputedStyle:()=>({visibility:'visible'}),setTimeout:fn=>fn(),document:{querySelectorAll:selector=>selector.startsWith('textarea')?(options.multiple?[field,new Textarea()]:[field]):(options.noButton?[]:[button])}};
+  const response={innerText:options.response || '',getClientRects:()=>[1]};
+  const sandbox={chrome:{runtime:{id:'test',onMessage:{addListener:fn=>listener=fn}}},HTMLTextAreaElement:Textarea,HTMLInputElement:Textarea,Event:class{},getComputedStyle:()=>({visibility:'visible'}),setTimeout:fn=>fn(),document:{querySelectorAll:selector=>selector.startsWith('textarea')?(options.multiple?[field,new Textarea()]:[field]):selector.startsWith('[aria-label="Meta AI response"]')?(options.response?[response]:[]):(options.noButton?[]:[button])}};
   vm.runInNewContext(fs.readFileSync('extension/content.js','utf8'),sandbox);
   sandbox.atob=value=>Buffer.from(value,'base64').toString('binary');
   sandbox.File=class{constructor(parts,name,opts){this.name=name;this.type=opts.type;}};
@@ -35,5 +36,6 @@ async function run(options={}) {
   r=await run({scoped:true,action:'fill',attachments,attached:true});assert.equal(r.reply.ok,false);assert.equal(r.value,'');
   r=await run({action:'fill',attachments});assert.equal(r.reply.ok,false);assert.equal(r.value,'');
   r=await run({scoped:true,action:'fill',attachments:[{...attachments[0],type:'image/svg+xml'}]});assert.equal(r.reply.ok,false);assert.equal(r.value,'');
+  r=await run({action:'readResponse',response:'{"plots":[]}'});assert.equal(r.reply.text,'{"plots":[]}');assert.equal(r.clicks,0);
   console.log('PASS: send, fill-only, occupied composer, ambiguous composer and missing button fallback (simulated DOM)');
 })().catch(error=>{console.error(error);process.exitCode=1;});

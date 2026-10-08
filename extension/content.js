@@ -87,6 +87,15 @@
         if(text.length>500000) throw new Error('ข้อความที่เลือกยาวเกินกำหนด');
         return {ok:true,text};
       }
+      if (message.action === 'readResponse') {
+        const replies=[...document.querySelectorAll('[aria-label="Meta AI response"], [data-testid="assistant-message"], [data-message-author-role="assistant"]')].filter(visible);
+        const reply=replies.at(-1);
+        if(!reply)return {ok:true,text:'',generating:false};
+        const text=reply.innerText?.trim() || '';
+        if(text.length>500000)throw new Error('คำตอบของ Meta AI ยาวเกินกำหนด');
+        const generating=[...document.querySelectorAll('button')].some(button=>visible(button) && /^(Stop|หยุด)$/i.test(button.getAttribute('aria-label') || button.getAttribute('title') || button.innerText.trim()));
+        return {ok:true,text,generating};
+      }
       if (!['fill', 'send'].includes(message.action)) throw new Error('คำสั่งไม่ถูกต้อง');
       if (locked) throw new Error('กำลังส่งพร้อมต์ กรุณารอสักครู่');
       if (typeof message.prompt !== 'string' || !message.prompt.trim() || message.prompt.length > 20000) throw new Error('พร้อมต์ต้องมีข้อความและไม่เกิน 20,000 ตัวอักษร');

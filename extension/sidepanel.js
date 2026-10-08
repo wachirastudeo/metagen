@@ -57,7 +57,7 @@ function populate() {
 function plotMode() {
   const ai=project.settings.plotMode==='ai';
   $('synopsis-label').firstChild.textContent=ai?'พล็อตเดิมเป็นแนวทาง (ถ้ามี)':'เรื่องย่อ';$('idea-label').hidden=!ai;$('ai-plot').hidden=!ai;$('manual-hint').hidden=ai;
-  $('create-scenes').textContent=ai?'เตรียมคำสั่งให้ Meta AI คิดเรื่อง →':'สร้างฉากและพร้อมต์ →';
+  $('create-scenes').textContent=ai?'ให้ Meta AI คิด 3 เรื่องย่อ →':'สร้างฉากและพร้อมต์ →';
 }
 function estimate() {
   $('estimate').textContent=project.settings.plotMode==='ai'?'AI แบ่งฉากตามเนื้อเรื่อง':'เพิ่มฉากได้ตามต้องการ';
@@ -231,12 +231,20 @@ $('setup-form').elements.seriesType.addEventListener('change',()=>{
   if(oldChoices.includes($('era-custom').value))$('era-custom').value='';
   syncEraChoices();readSettings();persist();
 });
-$('setup-form').onsubmit=event=>{
+$('setup-form').onsubmit=async event=>{
   event.preventDefault();if(projectWorkInProgress())return notice('รองานปัจจุบันเสร็จก่อนสร้างชุดฉากใหม่');readSettings();
   if(project.settings.plotMode==='ai') {
-    $('plot-request').value=core.plotOptionsPrompt(project.settings);
-    $('plot-request').scrollIntoView({behavior:'smooth',block:'center'});
-    return notice('คำสั่งพร้อมแล้ว ส่งให้ Meta AI คิดในหน้าแชต หรือคัดลอกไปวางเอง');
+    const prompt=core.plotOptionsPrompt(project.settings);
+    try {
+      busy=true;$('create-scenes').disabled=true;
+      $('plot-status').textContent='กำลังส่งคำขอและรอเรื่องย่อ 3 เรื่องจาก Meta AI…';
+      const response=await requestPlotResponse(prompt,text=>core.parsePlotOptions(text));
+      project.plotOptions=response;renderPlotOptions();await persist();
+      $('plot-status').textContent='ได้เรื่องย่อ 3 เรื่องแล้ว เลือกเรื่องที่ต้องการด้านล่าง';
+      $('plot-choice-section').scrollIntoView({behavior:'smooth',block:'start'});
+    }catch(error){$('plot-status').textContent=error.message;$('plot-manual').hidden=false;notice(error.message);}
+    finally{busy=false;$('create-scenes').disabled=false;}
+    return;
   }
   if(project.scenes.length && !confirm('สร้างชุดฉากใหม่แทนชุดเดิม? ส่งออกโปรเจกต์ก่อนหากต้องการเก็บฉากเดิม')) return;
   resetStudioForProject();project.scenes=core.createScenes(project.settings);selectedId=project.scenes[0]?.id;
@@ -281,46 +289,53 @@ $('export').onclick=()=>{
   link.href=url;link.download=(project.settings.title||'scenepilot').replace(/[\\/:*?"<>|]/g,'-')+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
 $('import').onclick=()=>$('import-file').click();
-$('copy-plot').onclick=async()=>{
-  try{if(!$('plot-request').value.trim())throw new Error('กดเตรียมคำสั่งก่อน');await navigator.clipboard.writeText($('plot-request').value);notice('คัดลอกคำสั่งคิดเรื่องแล้ว');}catch(error){notice(error.message||'คัดลอกไม่ได้ เลือกข้อความและกด Ctrl+C');}
-};
-$('send-plot').onclick=async()=>{
-  if(busy)return;
-  if(!$('plot-request').value.trim())return notice('กดเตรียมคำสั่งก่อนส่ง');
-  busy=true;$('send-plot').disabled=true;
-  try{const result=await meta('send',$('plot-request').value);notice(result.ok?'กดส่งคำสั่งแล้ว รอคำตอบจบบน Meta AI แล้วนำ JSON กลับมา':result.error);}catch{notice('การส่งขัดข้อง ตรวจหน้า Meta AI ก่อนลองใหม่');}
-  finally{busy=false;$('send-plot').disabled=false;}
-};
-$('read-plot').onclick=async()=>{
-  try{const result=await meta('readSelection');if(!result.ok)throw new Error(result.error);$('plot-response').value=result.text;notice('อ่านคำตอบที่เลือกแล้ว กดใช้พล็อตเพื่อตรวจรูปแบบและสร้างฉาก');}catch(error){notice(error.message);}
-};
+async function requestPlotResponse(prompt,parse) {
+  const previous=await meta('readResponse');
+  if(!previous.ok)throw new Error(previous.error);
+  const sent=await meta('send',prompt);
+  if(!sent.ok)throw new Error(sent.error);
+  const deadline=Date.now()+300000;
+  let lastText='',stable=0;
+  while(Date.now()<deadline) {
+    await new Promise(resolve=>setTimeout(resolve,2000));
+    const result=await meta('readResponse');
+    if(!result.ok)throw new Error(result.error);
+    if(!result.text || result.text===previous.text)continue;
+    stable=result.text===lastText?stable+1:0;lastText=result.text;
+    try{return parse(result.text);}catch(error){if(!result.generating && stable>=2)throw error;}
+  }
+  throw new Error('ยังอ่านคำตอบอัตโนมัติไม่ได้ ตรวจคำตอบบน Meta AI แล้ววาง JSON ในช่องด้านล่าง');
+}
 function renderPlotOptions() {
   const items=project.plotOptions || [];
   $('plot-choice-section').hidden=!items.length;
+  if(items.length && !busy)$('plot-status').textContent=`ได้เรื่องย่อ ${items.length} เรื่องแล้ว เลือกเรื่องที่ต้องการด้านล่าง`;
   $('plot-options').replaceChildren();
   items.forEach((item,index)=>{
     const card=document.createElement('article');card.className='plot-card';
     const title=document.createElement('h3');title.textContent=`${index+1}. ${item.title}`;
     const summary=document.createElement('p');summary.textContent=item.synopsis;
     const button=document.createElement('button');button.className='secondary wide';button.textContent='เลือกเรื่องนี้ →';
-    button.onclick=()=>{
+    button.onclick=async()=>{
       if(busy)return;
       readSettings();
-      $('plot-request').value=core.plotPrompt({...project.settings,title:item.title,synopsis:item.synopsis});
-      $('plot-response').value='';
       document.querySelectorAll('.plot-card').forEach(el=>el.classList.toggle('chosen',el===card));
-      $('plot-request').scrollIntoView({behavior:'smooth',block:'center'});
-      notice(`เลือก “${item.title}” แล้ว ส่งคำสั่งขยายเรื่องด้านบน แล้วนำ JSON คำตอบกลับมาอ่านเพื่อเข้าสู่ตัวละคร`);
+      busy=true;button.disabled=true;
+      $('plot-status').textContent=`กำลังส่ง “${item.title}” ให้ Meta AI ขยายเป็น ${project.settings.episodes} ตอน…`;
+      try {
+        const prompt=core.plotPrompt({...project.settings,title:item.title,synopsis:item.synopsis});
+        const loaded=await requestPlotResponse(prompt,text=>core.parsePlot(text,project.settings));
+        loaded.plotOptions=project.plotOptions || [];
+        if(project.scenes.length && !confirm(`ใช้เรื่อง “${loaded.settings.title}” จำนวน ${loaded.scenes.length} ฉาก แทนฉากเดิม?`))return;
+        projectIOBusy=true;const unlock=lockProjectControls();
+        try{await installProject(loaded);}finally{projectIOBusy=false;unlock();refreshProject();}
+        page('cast');notice('โหลดเรื่องและฉากแล้ว ตรวจตัวละครก่อนสร้างภาพ');
+      }catch(error){$('plot-status').textContent=error.message;$('plot-manual').hidden=false;notice(error.message);}
+      finally{busy=false;button.disabled=false;}
     };
     card.append(title,summary,button);$('plot-options').append(card);
   });
 }
-$('new-plots').onclick=()=>{
-  if(busy)return;
-  readSettings();$('plot-request').value=core.plotOptionsPrompt(project.settings,project.plotOptions || []);
-  $('plot-response').value='';$('plot-request').scrollIntoView({behavior:'smooth',block:'center'});
-  notice('เตรียมคำสั่งขอพล็อตชุดใหม่แล้ว ส่งให้ Meta AI และนำคำตอบกลับมา รายการเดิมยังอยู่จนได้ชุดใหม่');
-};
 $('apply-plot').onclick=async()=>{
   if(projectWorkInProgress())return notice('รองานปัจจุบันเสร็จก่อนใช้พล็อตใหม่');
   try{
@@ -360,7 +375,7 @@ $('reset-settings').onclick=()=>{
   if(!confirm('คืนค่าการสร้างเป็นค่าเริ่มต้น? พล็อต ตัวละคร สถานที่ ซีน และไฟล์สื่อจะยังอยู่ พร้อมต์ที่แก้เองจะยังอยู่'))return;
   const keys=['plotMode','seriesType','era','genre','orientation','duration','style','language','audio','extra'];
   updateCatalog(Object.fromEntries(keys.map(key=>[key,core.defaults[key]])));
-  $('plot-request').value='';
+  $('plot-response').value='';$('plot-manual').hidden=true;
   renderEditor();
   notice('รีเซ็ตการตั้งค่าการสร้างแล้ว ข้อมูลเรื่องและไฟล์สื่อยังอยู่');
 };
