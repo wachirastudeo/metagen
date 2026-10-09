@@ -22,6 +22,7 @@
     });
   }
   const get=id=>store('readonly',table=>table.get(id));
+  const clear=()=>store('readwrite',table=>table.clear());
   const MAX_IMAGE=10*1024*1024;
   async function inspectImage(file,{signal}={}){
     if(!(file instanceof Blob) || !file.size || file.size>MAX_IMAGE)throw new Error('เลือกภาพ PNG, JPEG หรือ WebP ขนาดไม่เกิน 10 MB');
@@ -145,6 +146,6 @@
       if(currentURL)URL.revokeObjectURL(currentURL);
     }
   }
-  const api={ordered,filename,get,inspect,inspectImage,putMany,save,download,assemble,MAX_FILE,MAX_IMAGE};
+  const api={ordered,filename,get,clear,inspect,inspectImage,putMany,save,download,assemble,MAX_FILE,MAX_IMAGE};
   if(typeof module!=='undefined')module.exports=api;else root.StudioMedia=api;
 })(globalThis);

@@ -370,14 +370,19 @@ function updateCatalog(changes) {
   for(const scene of generated)scene.prompt=core.prompt(project.settings,scene);
   populate();persist();
 }
-$('reset-settings').onclick=()=>{
+$('reset-settings').onclick=async()=>{
   if(projectWorkInProgress()){notice('รองานปัจจุบันเสร็จก่อนรีเซ็ตการตั้งค่า');return;}
-  if(!confirm('คืนค่าการสร้างเป็นค่าเริ่มต้น? พล็อต ตัวละคร สถานที่ ซีน และไฟล์สื่อจะยังอยู่ พร้อมต์ที่แก้เองจะยังอยู่'))return;
-  const keys=['plotMode','seriesType','era','genre','orientation','duration','style','language','audio','extra'];
-  updateCatalog(Object.fromEntries(keys.map(key=>[key,core.defaults[key]])));
-  $('plot-response').value='';$('plot-manual').hidden=true;
-  renderEditor();
-  notice('รีเซ็ตการตั้งค่าการสร้างแล้ว ข้อมูลเรื่องและไฟล์สื่อยังอยู่');
+  if(!confirm('รีเซ็ตและลบข้อมูลโปรเจกต์ทั้งหมดในเครื่องนี้? พล็อต ตัวละคร สถานที่ ซีน ภาพหลัก และคลิปที่บันทึกไว้จะถูกลบ กู้คืนได้จากไฟล์สำรองที่ส่งออกไว้เท่านั้น'))return;
+  projectIOBusy=true;const unlock=lockProjectControls();
+  let projectCleared=false;
+  try{
+    await installProject({version:1,settings:{...core.defaults},scenes:[],cast:[]});
+    projectCleared=true;
+    await StudioMedia.clear();
+    $('plot-response').value='';$('plot-status').textContent='';$('plot-manual').hidden=true;
+    refreshProject();page('setup');notice('รีเซ็ตแล้ว ลบข้อมูลโปรเจกต์และไฟล์สื่อที่บันทึกไว้ในเครื่องนี้');
+  }catch(error){refreshProject();notice((projectCleared?'โปรเจกต์ถูกรีเซ็ตแล้ว แต่ลบไฟล์สื่อไม่สำเร็จ: ':'รีเซ็ตไม่สำเร็จ: ')+error.message);}
+  finally{projectIOBusy=false;unlock();}
 };
 function syncCastSummary() {
   const summary=project.cast.map(c=>`${c.name || 'ยังไม่มีชื่อ'} (${c.role || 'ยังไม่ระบุบทบาท'}): ${c.description}`).join('\n\n');
