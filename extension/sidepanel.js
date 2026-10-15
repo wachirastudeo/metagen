@@ -3,7 +3,7 @@ const core = SceneCore;
 const extensionMode = !!globalThis.chrome?.runtime?.id;
 let project = { version:1, settings:{...core.defaults}, scenes:[],cast:[] }, selectedId = null, busy=false;
 let saveChain=Promise.resolve(), noticeTimer,projectIOBusy=false;
-let selectedAssetId=null, mediaImages=[], imageJob=null, imagePoll=null, imagePollBusy=false;
+let selectedAssetId=null, mediaImages=[], imageJob=null, imagePoll=null, imagePollBusy=false, castImageQueue=[];
 const statuses={draft:'พร้อมต์ร่าง',filled:'กรอกแล้ว',submitted:'ส่งแล้ว · รอตรวจ',done:'เสร็จแล้ว'};
 function notice(text) { clearTimeout(noticeTimer);$('notice').textContent=text; $('notice').hidden=false;noticeTimer=setTimeout(()=>{$('notice').hidden=true;},8000); }
 function writeProject(snapshot){
@@ -506,6 +506,26 @@ $('assets-from-cast').onclick=()=>{
   if(!project.cast.length)return notice('เพิ่มหรือออกแบบตัวละครในแท็บตัวละครก่อน');
   try{const count=project.assets.length;project.assets=core.syncAssets(project.assets,project.cast);selectedAssetId ||= project.assets[0]?.id;persist();renderAssets();notice(`ซิงก์ตัวละครครบ เพิ่ม ${project.assets.length-count} รายการ ภาพเดิมยังอยู่`);}catch(e){notice(e.message);}
 };
+$('generate-all-cast').onclick=async()=>{
+  if(busy || imageJob)return notice('รอภาพที่กำลังเจนก่อน');
+  if(!project.cast.length || project.cast.some(c=>!c.name.trim() || !c.description.trim()))return notice('ใส่ชื่อและรายละเอียดทุกตัวละครก่อน');
+  try{
+    project.assets=core.syncAssets(project.assets || [],project.cast);
+    const batch=project.cast.map(c=>project.assets.find(a=>a.castId===c.id)).filter(a=>a && !a.image && !a.portrait);
+    if(!batch.length)return notice('ตัวละครทุกตัวมีภาพแล้ว');
+    if(!confirm(`เริ่มเจนภาพตัวละคร ${batch.length} ตัวที่ยังไม่มีภาพ ทีละตัวบน Meta AI?`))return;
+    castImageQueue=batch.map(a=>a.id);persist();renderAssets();
+    notice(`เริ่มคิวเจนภาพ ${castImageQueue.length} ตัว`);await startNextCastImage();
+  }catch(error){castImageQueue=[];notice(error.message);}
+};
+async function startNextCastImage(){
+  if(!castImageQueue.length){$('image-job-status').textContent='เจนภาพตัวละครครบแล้ว';notice('เจนภาพตัวละครในคิวครบแล้ว');return;}
+  const asset=project.assets.find(a=>a.id===castImageQueue[0]);
+  if(!asset){castImageQueue.shift();return startNextCastImage();}
+  selectedAssetId=asset.id;renderAssets();$('asset-editor').scrollIntoView({behavior:'smooth',block:'start'});
+  $('asset-prompt').value=core.assetPrompt(project.settings,asset);
+  $('asset-generate').click();
+}
 $('asset-next-missing').onclick=()=>{if(busy || imageJob)return notice('รอรายการที่กำลังเจนก่อน');const asset=(project.assets || []).find(a=>!a.image && !a.portrait);if(!asset)return notice('มีภาพครบทุกตัวละครและสถานที่แล้ว');selectedAssetId=asset.id;renderAssets();$('asset-editor').scrollIntoView({block:'start',behavior:'smooth'});};
 for(const [id,key] of [['asset-name','name'],['asset-description','description']])$(id).oninput=()=>{const a=currentAsset();if(!a)return;a[key]=$(id).value;persist();};
 $('asset-rebuild').onclick=()=>{const a=currentAsset();if(a)$('asset-prompt').value=core.assetPrompt(project.settings,a);};
@@ -535,9 +555,12 @@ async function pollImageJob(){
   try{
     const r=await meta('readMedia');if(!r.ok)throw new Error(r.error);
     const fresh=(r.images || []).filter(m=>!imageJob.before.includes(m.key) && core.mediaUrl(m.src));
-    if(fresh.length){mediaImages=fresh;renderMedia();finishImageJob(`พบภาพใหม่ ${fresh.length} ภาพ เลือกภาพที่ต้องการด้านล่าง`);notice('Meta AI มีภาพใหม่แล้ว เลือกใช้ภาพกับรายการที่ต้องการ');}
-    else if(Date.now()-imageJob.startedAt>180000)finishImageJob('ยังไม่พบภาพใหม่ ตรวจหน้า Meta AI แล้วกดอ่านภาพจากหน้านี้');
-  }catch(e){finishImageJob(e.message+' — เปิดหน้า Meta AI แล้วกดอ่านภาพอีกครั้ง');}
+    if(fresh.length){mediaImages=fresh;renderMedia();
+      const batchAsset=castImageQueue.length && castImageQueue[0]===imageJob.assetId ? project.assets.find(a=>a.id===imageJob.assetId) : null;
+      if(batchAsset){batchAsset.image=core.mediaUrl(fresh[0].src);batchAsset.pageUrl=core.mediaUrl(fresh[0].pageUrl);castImageQueue.shift();await persist();renderAssets();finishImageJob(`เก็บภาพให้ ${batchAsset.name} แล้ว`);notice(`ได้ภาพ ${batchAsset.name} แล้ว กำลังส่งตัวถัดไป`);setTimeout(()=>startNextCastImage(),1200);}
+      else{finishImageJob(`พบภาพใหม่ ${fresh.length} ภาพ เลือกภาพที่ต้องการด้านล่าง`);notice('Meta AI มีภาพใหม่แล้ว เลือกใช้ภาพกับรายการที่ต้องการ');}}
+    else if(Date.now()-imageJob.startedAt>180000){finishImageJob('ยังไม่พบภาพใหม่ ตรวจหน้า Meta AI แล้วกดอ่านภาพจากหน้านี้');if(castImageQueue.length)castImageQueue=[];}
+  }catch(e){finishImageJob(e.message+' — เปิดหน้า Meta AI แล้วกดอ่านภาพอีกครั้ง');castImageQueue=[];}
   finally{imagePollBusy=false;}
 }
 $('asset-generate').onclick=async()=>{
